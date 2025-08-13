@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
@@ -7,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
 const initialCombos = [
-  { id: 1, name: "Combo Bolón Power", price: 4.00, status: 'Activo', image: "https://images.unsplash.com/photo-1626180344929-137ab6483463?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
-  { id: 2, name: "Combo Encebollado Resucitador", price: 3.50, status: 'Activo', image: "https://images.unsplash.com/photo-1631781343883-a3a3b8239e4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
-  { id: 3, name: "Combo Cangrejo Criollo", price: 7.50, status: 'Agotado', image: "https://images.unsplash.com/photo-1625579237333-e38f34a7a338?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80", description: "2-3 cangrejos criollos en nuestra salsa especial." },
+  { id: 1, name: "Combo Bolón Power", price: 4.00, status: 'Activo', image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
+  { id: 2, name: "Combo Encebollado Resucitador", price: 3.50, status: 'Activo', image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
+  { id: 3, name: "Combo Cangrejo Criollo", price: 7.50, status: 'Agotado', image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg", description: "2-3 cangrejos criollos en nuestra salsa especial." },
 ];
 
 const ComboForm = ({ combo, onSave, onCancel }) => {

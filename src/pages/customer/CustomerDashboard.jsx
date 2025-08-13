@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { History, User, LogOut, Menu, X } from 'lucide-react';

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,8 +9,8 @@ import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('prueba@usuario.com');
+  const [password, setPassword] = useState('1234');
   const [accountType, setAccountType] = useState('cliente');
   const navigate = useNavigate();
   const { login } = useAuth();

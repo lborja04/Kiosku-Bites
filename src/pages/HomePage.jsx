@@ -60,7 +60,7 @@ const HomePage = () => {
       <div className="bg-white">
         <section className="relative min-h-screen flex items-center justify-center text-white">
           <div className="absolute inset-0 z-0">
-            <img  alt="Mesa de restaurante con varios platos de comida" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1668405300506-e9f50695bad6" />
+            <img  alt="Mesa de restaurante con varios platos de comida" class="w-full h-full object-cover" src="https://i.postimg.cc/rpv4gfKR/kiosku.png" />
             <div className="absolute inset-0 bg-black/60"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -183,7 +183,7 @@ const HomePage = () => {
                   viewport={{ once: true }}
                   className="lg:order-last"
               >
-                  <img  alt="Gráfico mostrando la misión y visión de la empresa" class="rounded-2xl shadow-xl w-full h-auto" src="https://images.unsplash.com/photo-1621273974441-4d7193d7bee1" />
+                  <img  alt="Gráfico mostrando la misión y visión de la empresa" class="rounded-2xl shadow-xl w-full h-auto" src="https://i.postimg.cc/15JNbm8Q/mision.jpg" />
               </motion.div>
               <motion.div
                   initial={{ opacity: 0, x: -50 }}

@@ -68,7 +68,7 @@ const OurStory = () => {
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">¿Cómo nació KIOSKU BITES?</h2>
                 <div className="space-y-4 text-gray-600">
                   <p>
-                    En 2023, un grupo de jóvenes emprendedores se dio cuenta de una realidad 
+                    En 2025, un grupo de jóvenes emprendedores se dio cuenta de una realidad 
                     preocupante: cada día, toneladas de comida perfectamente buena terminaban 
                     en la basura mientras muchas personas luchaban por acceder a comidas de calidad.
                   </p>
@@ -97,7 +97,7 @@ const OurStory = () => {
                   alt="Equipo fundador de KIOSKU BITES" src="https://images.unsplash.com/photo-1531546110571-200f26d0d18b" />
                 <div className="absolute -bottom-6 -right-6 bg-primary text-white p-4 rounded-xl">
                   <div className="text-center">
-                    <div className="text-2xl font-bold">2023</div>
+                    <div className="text-2xl font-bold">2025</div>
                     <div className="text-sm">Año de fundación</div>
                   </div>
                 </div>

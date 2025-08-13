@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { LayoutDashboard, Package, BarChart2, Star, LogOut, Menu, X } from 'lucide-react';
+import { Package, BarChart2, Star, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ManageCombos from '@/pages/business/ManageCombos';
 import BusinessStats from '@/pages/business/BusinessStats';
@@ -28,7 +28,7 @@ const BusinessDashboard = () => {
       <Helmet>
         <title>Dashboard del Local - KIOSKU BITES</title>
       </Helmet>
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gray-50 pt-16 overflow-x-auto">
         <div className="flex">
           {/* Sidebar para Desktop */}
           <aside className="w-64 bg-white p-4 border-r border-gray-200 hidden md:flex flex-col h-screen fixed top-16 left-0">
