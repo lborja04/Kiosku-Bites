@@ -5,24 +5,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --primary: 179 100% 19%;
-  --primary-foreground: 255 255 255;
-  --secondary: 33 94% 57%;
+  --primary: 270 33% 23%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 26 11% 72%;
   --secondary-foreground: 15 23 42;
-  --background: 255 255 255;
+  --background: 46 87% 92%;
   --foreground: 15 23 42;
   --muted: 248 250 252;
   --muted-foreground: 100 116 139;
-  --accent: 241 245 249;
+  --accent: 189 176 159;
   --accent-foreground: 15 23 42;
   --destructive: 239 68 68;
   --destructive-foreground: 255 255 255;
-  --border: 226 232 240;
-  --input: 226 232 240;
-  --ring: 179 100% 19%;
-  --card: 255 255 255;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 270 33% 23%;
+  --card: 46 87% 92%;
   --card-foreground: 15 23 42;
-  --popover: 255 255 255;
+  --popover: 46 87% 92%;
   --popover-foreground: 15 23 42;
   --radius: 0.5rem;
 }
@@ -47,9 +47,9 @@ body {
 }
 
 .glass-effect {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(246, 242, 225, 0.1);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(246, 242, 225, 0.2);
 }
 
 .hero-pattern {

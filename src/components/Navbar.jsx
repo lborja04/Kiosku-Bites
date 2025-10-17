@@ -26,7 +26,7 @@ const Navbar = () => {
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">K</span>
             </div>
-            <span className="text-xl font-bold text-gradient">KIOSKU BITES</span>
+            <span className="text-xl font-bold text-[#453255]">KIOSKU BITES</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">
