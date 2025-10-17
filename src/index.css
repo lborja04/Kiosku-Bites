@@ -5,27 +5,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --primary: 179 100% 19%;
+  /* Paleta: Cacao & Crema (foodie, cálido) */
+  /* Primario · Cacao #5E3023 */
+  --primary-hex: #5E3023;
+  --primary-hover-hex: #4e261b; /* derivado, más oscuro para hover/pressed */
+  --primary: 18 45% 22%;
   --primary-foreground: 255 255 255;
-  --secondary: 33 94% 57%;
-  --secondary-foreground: 15 23 42;
-  --background: 255 255 255;
-  --foreground: 15 23 42;
-  --muted: 248 250 252;
-  --muted-foreground: 100 116 139;
-  --accent: 241 245 249;
-  --accent-foreground: 15 23 42;
+
+  /* Secundario · Tono complementario cálido #8D5B4C */
+  --secondary-hex: #8D5B4C;
+  --secondary: 12 26% 47%;
+  --secondary-foreground: 255 255 255;
+
+  /* Acento · Cremosidad #E0AFA0 */
+  --accent-hex: #E0AFA0;
+  --accent: 20 65% 80%;
+  --accent-foreground: 31 41 55;
+
+  /* Apoyo / Info */
+  --info-hex: #2563EB; /* azul de apoyo */
+  --info: 215 79% 52%;
+
+  /* Fondo y superficies */
+  --background-hex: #FFF8F1; /* Fondo Base */
+  --background: 40 100% 99%;
+  --card: 255 255 255; /* Superficie Tarjetas */
+  --card-foreground: 31 41 55;
+
+  /* Texto */
+  --foreground: 31 41 55; /* Texto Principal #1F2937 */
+  --muted-foreground: 107 114 128; /* Texto Secundario (fallback) */
+
   --destructive: 239 68 68;
   --destructive-foreground: 255 255 255;
   --border: 226 232 240;
   --input: 226 232 240;
-  --ring: 179 100% 19%;
-  --card: 255 255 255;
-  --card-foreground: 15 23 42;
+  --ring: var(--info);
   --popover: 255 255 255;
-  --popover-foreground: 15 23 42;
+  --popover-foreground: 31 41 55;
   --radius: 0.5rem;
 }
+
 
 html, body {
   overflow-x: hidden;
@@ -36,20 +56,20 @@ html, body {
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: var(--background-hex);
+  color: rgb(var(--foreground));
   font-family: 'Inter', sans-serif;
   line-height: 1.6;
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+  background: linear-gradient(135deg, var(--primary-hex) 0%, var(--secondary-hex) 100%);
 }
 
 .glass-effect {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(246, 242, 225, 0.1);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(246, 242, 225, 0.2);
 }
 
 .hero-pattern {
@@ -68,22 +88,22 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  background: linear-gradient(135deg, var(--primary-hex), var(--secondary-hex));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .btn-gradient {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: var(--primary-hex);
+  color: rgb(var(--primary-foreground));
   transition: all 0.3s ease;
 }
 
 .btn-gradient:hover {
-  background: hsl(var(--primary) / 0.9);
+  background: var(--primary-hover-hex);
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px hsla(var(--primary), 0.3);
+  box-shadow: 0 10px 20px rgba(91, 42, 134, 0.18);
 }
 
 .floating-animation {

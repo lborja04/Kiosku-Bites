@@ -23,10 +23,10 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">K</span>
+            <div className="w-10 h-10 bg-[var(--primary-hex)] rounded-lg flex items-center justify-center">
+              <span className="text-[rgb(var(--primary-foreground))] font-bold text-xl">K</span>
             </div>
-            <span className="text-xl font-bold text-gradient">KIOSKU BITES</span>
+            <span className="text-xl font-bold text-[var(--primary-hex)]">KIOSKU BITES</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">
@@ -34,9 +34,9 @@ const Navbar = () => {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
+                className={`text-sm font-medium transition-colors hover:text-[var(--secondary-hex)] ${
                   location.pathname === item.path
-                    ? 'text-primary border-b-2 border-primary'
+                    ? 'text-[var(--primary-hex)] border-b-2 border-[var(--primary-hex)]'
                     : 'text-gray-700'
                 }`}
               >
@@ -69,7 +69,7 @@ const Navbar = () => {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-primary">
+                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-[var(--secondary-hex)]">
                     <User className="w-4 h-4 mr-2" />
                     Iniciar Sesión
                   </Button>

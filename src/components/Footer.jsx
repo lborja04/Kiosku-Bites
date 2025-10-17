@@ -3,7 +3,7 @@ import { Facebook, Instagram, Twitter, Mail, MapPin } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-white">
+  <footer className="bg-[var(--primary-hex)] text-[rgb(var(--primary-foreground))]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
@@ -18,13 +18,13 @@ const Footer = () => {
               y ofrecer deliciosos combos a precios increíbles.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-primary transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[var(--secondary-hex)] transition-colors">
                 <Facebook className="w-6 h-6" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-primary transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[var(--secondary-hex)] transition-colors">
                 <Instagram className="w-6 h-6" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-primary transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[var(--secondary-hex)] transition-colors">
                 <Twitter className="w-6 h-6" />
               </a>
             </div>
@@ -34,22 +34,22 @@ const Footer = () => {
             <span className="text-lg font-semibold mb-4 block">Enlaces Rápidos</span>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-gray-300 hover:text-primary transition-colors">
+                <Link to="/" className="text-gray-300 hover:text-[var(--secondary-hex)] transition-colors">
                   Inicio
                 </Link>
               </li>
               <li>
-                <Link to="/buscar-combos" className="text-gray-300 hover:text-primary transition-colors">
+                <Link to="/buscar-combos" className="text-gray-300 hover:text-[var(--secondary-hex)] transition-colors">
                   Buscar Combos
                 </Link>
               </li>
               <li>
-                <Link to="/nuestra-historia" className="text-gray-300 hover:text-primary transition-colors">
+                <Link to="/nuestra-historia" className="text-gray-300 hover:text-[var(--secondary-hex)] transition-colors">
                   Nuestra Historia
                 </Link>
               </li>
               <li>
-                <Link to="/contacto" className="text-gray-300 hover:text-primary transition-colors">
+                <Link to="/contacto" className="text-gray-300 hover:text-[var(--secondary-hex)] transition-colors">
                   Contacto
                 </Link>
               </li>
@@ -60,11 +60,11 @@ const Footer = () => {
             <span className="text-lg font-semibold mb-4 block">Contacto</span>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <Mail className="w-5 h-5 text-primary" />
+                <Mail className="w-5 h-5 text-[var(--accent-hex)]" />
                 <span className="text-gray-300">hola@kioskubites.com</span>
               </div>
               <div className="flex items-center space-x-2">
-                <MapPin className="w-5 h-5 text-primary" />
+                <MapPin className="w-5 h-5 text-[var(--accent-hex)]" />
                 <span className="text-gray-300">Guayaquil, Ecuador</span>
               </div>
             </div>

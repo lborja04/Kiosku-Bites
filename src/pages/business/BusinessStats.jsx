@@ -99,7 +99,7 @@ const BusinessStats = () => {
                     labelStyle={{ fontWeight: 'bold' }}
                   />
                   <Legend iconType="circle" iconSize={10} />
-                  <Bar dataKey="ventas" fill="#00615F" name="Ingresos" barSize={20} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ventas" fill="var(--secondary-hex)" name="Ingresos" barSize={20} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

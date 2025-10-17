@@ -86,12 +86,12 @@ const HomePage = () => {
                     Buscar combos cerca
                   </Button>
                 </Link>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="px-8 py-4 text-lg w-full sm:w-auto"
-                  onClick={handleDownloadApp}
-                >
+        <Button
+          variant="secondary"
+          size="lg"
+          className="bg-[var(--accent-hex)] text-[var(--primary-hex)] hover:brightness-90 px-8 py-4 text-lg w-full sm:w-auto"
+          onClick={handleDownloadApp}
+        >
                   <Download className="w-5 h-5 mr-2" />
                   Descarga nuestra app
                 </Button>
