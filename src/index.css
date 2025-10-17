@@ -5,9 +5,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --primary: 179 100% 19%;
+  --primary: 173 78% 42%; /* Verde Glovo */
   --primary-foreground: 255 255 255;
-  --secondary: 33 94% 57%;
+  --secondary: 45 100% 50%; /* Amarillo Glovo */
   --secondary-foreground: 15 23 42;
   --background: 255 255 255;
   --foreground: 15 23 42;
@@ -19,7 +19,7 @@
   --destructive-foreground: 255 255 255;
   --border: 226 232 240;
   --input: 226 232 240;
-  --ring: 179 100% 19%;
+  --ring: 173 78% 42%;
   --card: 255 255 255;
   --card-foreground: 15 23 42;
   --popover: 255 255 255;
