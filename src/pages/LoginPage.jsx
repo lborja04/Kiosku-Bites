@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
@@ -18,7 +17,6 @@ const LoginPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (email && password) {
-      // Simulación de autenticación
       const userData = {
         email: email,
         name: accountType === 'cliente' ? 'Cliente de Prueba' : 'Local de Prueba',
@@ -29,7 +27,8 @@ const LoginPage = () => {
         title: "¡Bienvenido de nuevo!",
         description: `Has iniciado sesión como ${accountType}.`,
       });
-      navigate(`/dashboard/${accountType}`);
+      // volver a comportamiento original: redirigir al dashboard según tipo
+      navigate(`/dashboard/${accountType}`, { replace: true });
     } else {
       toast({
         title: "Error de inicio de sesión",
@@ -48,13 +47,9 @@ const LoginPage = () => {
 
       <div className="min-h-screen flex bg-gray-50">
         <div className="hidden lg:block relative w-0 flex-1 lg:w-1/2 xl:w-2/3">
-          <img  className="absolute inset-0 h-full w-full object-cover" alt="Deliciosa comida ecuatoriana en un plato" src="https://images.unsplash.com/photo-1656167718265-a05fe70cdf52" />
+          <img  className="absolute inset-0 h-full w-full object-cover" alt="Deliciosa comida" src="https://images.unsplash.com/photo-1656167718265-a05fe70cdf52" />
           <div className="absolute inset-0 bg-primary/70 flex flex-col items-center justify-center text-white p-12 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
               <Link to="/" className="flex items-center justify-center space-x-4 mb-8">
                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center">
                   <span className="text-primary font-bold text-4xl">K</span>
@@ -68,34 +63,19 @@ const LoginPage = () => {
         </div>
 
         <div className="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="mx-auto w-full max-w-sm lg:w-96"
-          >
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="mx-auto w-full max-w-sm lg:w-96">
             <div>
               <h2 className="text-3xl font-bold tracking-tight text-gray-900">¡Hola de nuevo!</h2>
-              <p className="mt-2 text-lg text-gray-600">
-                Inicia sesión para seguir salvando comida.
-              </p>
+              <p className="mt-2 text-lg text-gray-600">Inicia sesión para seguir salvando comida.</p>
             </div>
             
             <div className="mt-8">
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <Button
-                  onClick={() => setAccountType('cliente')}
-                  variant={accountType === 'cliente' ? 'default' : 'outline'}
-                  className={`${accountType === 'cliente' ? 'btn-gradient' : ''} py-3`}
-                >
+                <Button onClick={() => setAccountType('cliente')} variant={accountType === 'cliente' ? 'default' : 'outline'} className={`${accountType === 'cliente' ? 'btn-gradient' : ''} py-3`}>
                   <User className="w-4 h-4 mr-2" />
                   Soy Cliente
                 </Button>
-                <Button
-                  onClick={() => setAccountType('local')}
-                  variant={accountType === 'local' ? 'default' : 'outline'}
-                  className={`${accountType === 'local' ? 'btn-gradient' : ''} py-3`}
-                >
+                <Button onClick={() => setAccountType('local')} variant={accountType === 'local' ? 'default' : 'outline'} className={`${accountType === 'local' ? 'btn-gradient' : ''} py-3`}>
                   <Briefcase className="w-4 h-4 mr-2" />
                   Soy un Local
                 </Button>
@@ -104,62 +84,29 @@ const LoginPage = () => {
               <div className="mt-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                      Correo electrónico
-                    </label>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">Correo electrónico</label>
                     <div className="mt-1 relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="tu@email.com"
-                      />
+                      <input id="email" name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="tu@email.com" />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                      Contraseña
-                    </label>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
                     <div className="mt-1 relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="Tu contraseña"
-                      />
+                      <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Tu contraseña" />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <input
-                        id="remember-me"
-                        name="remember-me"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                        Recuérdame
-                      </label>
+                      <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                      <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">Recuérdame</label>
                     </div>
 
                     <div className="text-sm">
-                      <a href="#" className="font-medium text-primary hover:text-primary/80">
-                        ¿Olvidaste tu contraseña?
-                      </a>
+                      <a href="#" className="font-medium text-primary hover:text-primary/80">¿Olvidaste tu contraseña?</a>
                     </div>
                   </div>
 
@@ -170,11 +117,9 @@ const LoginPage = () => {
                     </Button>
                   </div>
                 </form>
+
                 <p className="mt-8 text-center text-md text-gray-600">
-                  ¿No tienes una cuenta?{' '}
-                  <Link to="/register" className="font-medium text-primary hover:text-[#1f3a5e]">
-                    Regístrate aquí
-                  </Link>
+                  ¿No tienes una cuenta? <Link to="/register" className="font-medium text-primary hover:text-[#1f3a5e]">Regístrate aquí</Link>
                 </p>
               </div>
             </div>

@@ -19,10 +19,10 @@ import ShoppingCart from '@/pages/ShoppingCart';
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
   if (role && user.type !== role) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
   return children;
 };
@@ -39,6 +39,7 @@ function AppContent() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            {/* Buscar Combos vuelve a ser público */}
             <Route path="/buscar-combos" element={<SearchCombos />} />
             <Route path="/nuestra-historia" element={<OurStory />} />
             <Route path="/para-empresas" element={<ForBusinessPage />} />
@@ -46,8 +47,13 @@ function AppContent() {
             <Route path="/combo/:id" element={<ComboDetail />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/carrito" element={<ShoppingCart />} />
-            
+            {/* carrito sigue protegido */}
+            <Route path="/carrito" element={
+              <PrivateRoute>
+                <ShoppingCart />
+              </PrivateRoute>
+            } />
+
             <Route path="/dashboard/cliente/*" element={
               <PrivateRoute role="cliente">
                 <CustomerDashboard />
@@ -58,7 +64,7 @@ function AppContent() {
                 <BusinessDashboard />
               </PrivateRoute>
             }/>
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
         <Footer />
@@ -75,6 +81,5 @@ function App() {
     </AuthProvider>
   );
 }
-
 
 export default App;

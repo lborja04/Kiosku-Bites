@@ -10,13 +10,17 @@ const Navbar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  const navItems = [
+  const landingItems = [
     { name: 'Inicio', path: '/' },
     { name: 'Buscar Combos', path: '/buscar-combos' },
     { name: 'Para Empresas', path: '/para-empresas' },
     { name: 'Nuestra Historia', path: '/nuestra-historia' },
     { name: 'Contacto', path: '/contacto' },
   ];
+
+  const appItems = [{ name: 'Buscar Combos', path: '/buscar-combos' }];
+
+  const navItems = user ? appItems : landingItems;
 
   return (
     <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-200 z-50">
@@ -48,19 +52,28 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
+                {/* Icono carrito igual que antes */}
                 {user.type === 'cliente' && (
                   <Link to="/carrito">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="icon" aria-label="Carrito">
                       <ShoppingCart className="w-5 h-5" />
                     </Button>
                   </Link>
                 )}
+
+                {/* Botón Dashboard con estilo claro (similar al original) */}
                 <Link to={`/dashboard/${user.type}`}>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-[#F5EBD9] text-[#453255] border-transparent hover:bg-[#efe3cf]"
+                  >
                     <LayoutDashboard className="w-4 h-4 mr-2" />
                     Dashboard
                   </Button>
                 </Link>
+
+                {/* Botón Cerrar Sesión morado */}
                 <Button onClick={logout} size="sm" className="btn-gradient">
                   <LogOut className="w-4 h-4 mr-2" />
                   Cerrar Sesión
