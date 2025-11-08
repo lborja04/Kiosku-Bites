@@ -1,42 +1,80 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn, Briefcase, User } from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { loginWithEmail } from '@/services/authService';
+import { auth, db } from '../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('prueba@usuario.com');
-  const [password, setPassword] = useState('1234');
-  const [accountType, setAccountType] = useState('cliente');
+  const [email, setEmail] = useState(''); //prueba@usuario.com
+  const [password, setPassword] = useState(''); //1234
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const checkUserType = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userType = userDoc.data().type;
+          navigate(userType === 'local' ? '/local-dashboard' : '/customer-dashboard');
+        }
+      }
+    };
+    checkUserType();
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      const userData = {
-        email: email,
-        name: accountType === 'cliente' ? 'Cliente de Prueba' : 'Local de Prueba',
-        type: accountType,
-      };
-      login(userData);
-      toast({
-        title: "¡Bienvenido de nuevo!",
-        description: `Has iniciado sesión como ${accountType}.`,
-      });
-      // volver a comportamiento original: redirigir al dashboard según tipo
-      navigate(`/dashboard/${accountType}`, { replace: true });
-    } else {
+    if (!email || !password) {
       toast({
         title: "Error de inicio de sesión",
         description: "Por favor, introduce tu correo y contraseña.",
         variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      // Inicia sesión con Firebase Auth
+      const userCredential = await loginWithEmail(email, password);
+      const firebaseUser = userCredential.user;
+
+      // Agrega el tipo de cuenta (cliente o local)
+      const userData = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: 'Cliente', // Por defecto como Cliente
+        type: 'cliente', // Por defecto como Cliente
+      };
+
+      // Guarda usuario en el contexto
+      login(userData);
+
+      toast({
+        title: "¡Bienvenido de nuevo!",
+        description: `Has iniciado sesión como Cliente.`,
+      });
+
+      // Redirige al dashboard correcto
+      navigate(`/dashboard/cliente`, { replace: true });
+
+    } catch (error) {
+      toast({
+        title: "Error de inicio de sesión",
+        description: "Credenciales inválidas o usuario no encontrado.",
+        variant: "destructive",
+      });
+      console.error("Firebase login error:", error);
     }
   };
+
 
   return (
     <>
@@ -70,17 +108,6 @@ const LoginPage = () => {
             </div>
             
             <div className="mt-8">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <Button onClick={() => setAccountType('cliente')} variant={accountType === 'cliente' ? 'default' : 'outline'} className={`${accountType === 'cliente' ? 'btn-gradient' : ''} py-3`}>
-                  <User className="w-4 h-4 mr-2" />
-                  Soy Cliente
-                </Button>
-                <Button onClick={() => setAccountType('local')} variant={accountType === 'local' ? 'default' : 'outline'} className={`${accountType === 'local' ? 'btn-gradient' : ''} py-3`}>
-                  <Briefcase className="w-4 h-4 mr-2" />
-                  Soy un Local
-                </Button>
-              </div>
-
               <div className="mt-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
