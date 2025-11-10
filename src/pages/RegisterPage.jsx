@@ -26,7 +26,6 @@ const RegisterPage = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Guardar datos adicionales en Firestore
       await setDoc(doc(db, 'users', user.uid), {
         type: accountType,
         ...formData,
@@ -37,30 +36,25 @@ const RegisterPage = () => {
         displayName: accountType === 'local' ? formData.nombreLocal : formData.nombre,
       });
 
+      await auth.signOut();
+
       toast({
-        title: "✅ Registro exitoso",
-        description: accountType === "cliente"
-          ? "Bienvenido a Kiosku Bites, cliente!"
-          : "Tu local ha sido registrado correctamente.",
+        title: "Cuenta creada",
+        description: "Ahora inicia sesión con tus credenciales.",
       });
 
-      // ✅ Redirigir según tipo
-      navigate(
-        accountType === "local"
-          ? "/business-dashboard"
-          : "/customer-dashboard",
-        { replace: true }
-      );
+      navigate("/login", { replace: true });
 
     } catch (error) {
       console.error(error);
       toast({
-        title: "❌ Error al registrarte",
+        title: "Error al registrarte",
         description: error.message,
         variant: "destructive",
       });
     }
   };
+
 
 
   const renderForm = () => {
