@@ -32,6 +32,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!email || !password) {
       toast({
         title: "Error de inicio de sesión",
@@ -42,38 +43,45 @@ const LoginPage = () => {
     }
 
     try {
-      // Inicia sesión con Firebase Auth
       const userCredential = await loginWithEmail(email, password);
       const firebaseUser = userCredential.user;
 
-      // Agrega el tipo de cuenta (cliente o local)
-      const userData = {
+      const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+      if (!userDoc.exists()) {
+        throw new Error("Usuario sin datos en Firestore");
+      }
+
+      const userData = userDoc.data();
+
+      login({
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: 'Cliente', // Por defecto como Cliente
-        type: 'cliente', // Por defecto como Cliente
-      };
-
-      // Guarda usuario en el contexto
-      login(userData);
-
-      toast({
-        title: "¡Bienvenido de nuevo!",
-        description: `Has iniciado sesión como Cliente.`,
+        name: firebaseUser.displayName || "Usuario",
+        type: userData.type,
       });
 
-      // Redirige al dashboard correcto
-      navigate(`/dashboard/cliente`, { replace: true });
+      toast({
+        title: "¡Bienvenido!",
+        description: `Sesión iniciada como ${userData.type.toUpperCase()}.`,
+      });
+
+      navigate(
+        userData.type === "local"
+          ? "/business-dashboard"
+          : "/customer-dashboard",
+        { replace: true }
+      );
 
     } catch (error) {
+      console.error("Firebase login error:", error);
       toast({
         title: "Error de inicio de sesión",
         description: "Credenciales inválidas o usuario no encontrado.",
         variant: "destructive",
       });
-      console.error("Firebase login error:", error);
     }
   };
+  
 
 
   return (

@@ -33,29 +33,35 @@ const RegisterPage = () => {
         createdAt: new Date(),
       });
 
-      // Actualizar nombre en perfil de Firebase
       await updateProfile(user, {
         displayName: accountType === 'local' ? formData.nombreLocal : formData.nombre,
       });
 
       toast({
-        title: '✅ Registro exitoso',
-        description: accountType === 'cliente'
-          ? 'Bienvenido a Kiosku Bites, cliente!'
-          : 'Tu local ha sido registrado correctamente.',
+        title: "✅ Registro exitoso",
+        description: accountType === "cliente"
+          ? "Bienvenido a Kiosku Bites, cliente!"
+          : "Tu local ha sido registrado correctamente.",
       });
 
-      // Redirigir según tipo de cuenta
-      navigate(accountType === 'cliente' ? '/home' : '/dashboard-local');
+      // ✅ Redirigir según tipo
+      navigate(
+        accountType === "local"
+          ? "/business-dashboard"
+          : "/customer-dashboard",
+        { replace: true }
+      );
 
     } catch (error) {
       console.error(error);
       toast({
-        title: '❌ Error al registrarte',
+        title: "❌ Error al registrarte",
         description: error.message,
+        variant: "destructive",
       });
     }
   };
+
 
   const renderForm = () => {
     if (accountType === 'cliente') {
