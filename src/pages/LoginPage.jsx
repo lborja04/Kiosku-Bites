@@ -19,12 +19,17 @@ const LoginPage = () => {
   useEffect(() => {
     const checkUserType = async () => {
       const user = auth.currentUser;
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userType = userDoc.data().type;
-          navigate(userType === 'local' ? '/local-dashboard' : '/customer-dashboard');
-        }
+      if (!user) return;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) return;
+
+      const userType = userDoc.data().type;
+
+      if (userType === "cliente") {
+        navigate("/dashboard/cliente", { replace: true });
+      } else if (userType === "local") {
+        navigate("/dashboard/local", { replace: true });
       }
     };
     checkUserType();
@@ -56,7 +61,7 @@ const LoginPage = () => {
       login({
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: firebaseUser.displayName || "Usuario",
+        name: userData.nombre || userData.nombreLocal || "Usuario",
         type: userData.type,
       });
 
@@ -65,12 +70,11 @@ const LoginPage = () => {
         description: `Sesión iniciada como ${userData.type.toUpperCase()}.`,
       });
 
-      navigate(
-        userData.type === "local"
-          ? "/business-dashboard"
-          : "/customer-dashboard",
-        { replace: true }
-      );
+      if (userData.type === "cliente") {
+        navigate("/dashboard/cliente", { replace: true });
+      } else if (userData.type === "local") {
+        navigate("/dashboard/local", { replace: true });
+      }
 
     } catch (error) {
       console.error("Firebase login error:", error);
@@ -81,6 +85,7 @@ const LoginPage = () => {
       });
     }
   };
+
   
 
 
