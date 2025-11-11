@@ -1,54 +1,54 @@
-import React from 'react';
+// React not required directly in this file (JSX runtime handles it)
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { DollarSign, Users, Trash2, TrendingUp, ArrowRight, CheckCircle } from 'lucide-react';
+import { DollarSign, Users, Trash2, TrendingUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ForBusinessPage = () => {
   const benefits = [
     {
       icon: <DollarSign className="w-8 h-8" />,
-      title: "Genera Ingresos Adicionales",
-      description: "Convierte el excedente de comida que antes era una pérdida en una nueva fuente de ingresos para tu negocio."
+      title: 'Genera Ingresos Adicionales',
+      description: 'Convierte el excedente de comida que antes era una pérdida en una nueva fuente de ingresos para tu negocio.',
     },
     {
       icon: <Users className="w-8 h-8" />,
-      title: "Atrae Nuevos Clientes",
-      description: "Date a conocer a una nueva audiencia de clientes que buscan opciones de calidad a buen precio y que valoran la sostenibilidad."
+  title: 'Atrae Nuevos Clientes',
+  description: 'Date a conocer a una nueva audiencia de clientes que buscan opciones de calidad a buen precio y que valoran la sostenibilidad.',
     },
     {
       icon: <Trash2 className="w-8 h-8" />,
-      title: "Reduce el Desperdicio",
-      description: "Minimiza tu impacto ambiental y los costos asociados a la gestión de residuos. ¡Cada combo vendido es comida salvada!"
+  title: 'Reduce el Desperdicio',
+  description: 'Minimiza tu impacto ambiental y los costos asociados a la gestión de residuos. ¡Cada combo vendido es comida salvada!',
     },
     {
       icon: <TrendingUp className="w-8 h-8" />,
-      title: "Mejora tu Imagen de Marca",
-      description: "Posiciona tu negocio como una empresa socialmente responsable y comprometida con el medio ambiente."
+  title: 'Mejora tu Imagen de Marca',
+  description: 'Posiciona tu negocio como una empresa socialmente responsable y comprometida con el medio ambiente.',
     }
   ];
 
   const steps = [
     {
-      number: "1",
-      title: "Regístrate Fácilmente",
-      description: "Completa nuestro sencillo formulario de registro para locales. Nuestro equipo te contactará para verificar tu negocio."
+      number: '1',
+      title: 'Regístrate Fácilmente',
+      description: 'Completa nuestro sencillo formulario de registro para locales. Nuestro equipo te contactará para verificar tu negocio.',
     },
     {
-      number: "2",
-      title: "Publica tus Combos",
-      description: "Al final del día, publica los combos sorpresa con el excedente de comida a través de nuestra plataforma para locales."
+  number: '2',
+  title: 'Publica tus Combos',
+  description: 'Al final del día, publica los combos sorpresa con el excedente de comida a través de nuestra plataforma para locales.',
     },
     {
-      number: "3",
-      title: "Prepara los Pedidos",
-      description: "Los clientes reservarán y pagarán a través de la app. Solo tienes que preparar los combos para la hora de recogida."
+  number: '3',
+  title: 'Prepara los Pedidos',
+  description: 'Los clientes reservarán y pagarán a través de la app. Solo tienes que preparar los combos para la hora de recogida.',
     },
     {
-      number: "4",
-      title: "Recibe tus Ganancias",
-      description: "Recibe los pagos de tus ventas de forma segura y periódica directamente en tu cuenta bancaria."
+      number: '4',
+      title: 'Recibe tus Ganancias',
+      description: 'Recibe los pagos de tus ventas de forma segura y periódica directamente en tu cuenta bancaria.',
     }
   ];
 
@@ -124,7 +124,7 @@ const ForBusinessPage = () => {
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                <img  class="rounded-2xl shadow-xl w-full h-auto" alt="Chef sonriente entregando una bolsa de comida para llevar" src="https://images.unsplash.com/photo-1690373620370-a58238d26d68" />
+                <img  className="rounded-2xl shadow-xl w-full h-auto" alt="Chef sonriente entregando una bolsa de comida para llevar" src="https://images.unsplash.com/photo-1690373620370-a58238d26d68" />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
@@ -169,10 +169,10 @@ const ForBusinessPage = () => {
             >
               <div className="absolute -top-8 -left-8 w-20 h-20 bg-secondary rounded-full flex items-center justify-center text-white text-5xl font-serif">“</div>
               <blockquote className="text-xl italic text-gray-700">
-                "Desde que nos unimos a KIOSKU BITES, hemos reducido nuestro desperdicio de comida en casi un 80%. Además, hemos visto un flujo constante de nuevos clientes que vienen por los combos y terminan volviendo como clientes regulares. ¡Es una situación en la que todos ganan!"
+                &quot;Desde que nos unimos a KIOSKU BITES, hemos reducido nuestro desperdicio de comida en casi un 80%. Además, hemos visto un flujo constante de nuevos clientes que vienen por los combos y terminan volviendo como clientes regulares. ¡Es una situación en la que todos ganan!&quot;
               </blockquote>
               <footer className="mt-6">
-                <p className="font-bold text-gray-900">Juan Pérez, Dueño de "Asados de la Garzota"</p>
+                <p className="font-bold text-gray-900">Juan Pérez, Dueño de &quot;Asados de la Garzota&quot;</p>
                 <p className="text-gray-500">Guayaquil, Ecuador</p>
               </footer>
             </motion.div>

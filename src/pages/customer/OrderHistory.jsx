@@ -17,8 +17,8 @@ const OrderHistory = () => {
   const handleRepeatOrder = (orderItems) => {
     localStorage.setItem('cart', JSON.stringify(orderItems));
     toast({
-      title: "¡Pedido repetido!",
-      description: "Los combos han sido añadidos a tu carrito.",
+      title: '¡Pedido repetido!',
+      description: 'Los combos han sido añadidos a tu carrito.',
     });
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -39,18 +39,18 @@ const RegisterPage = () => {
       await auth.signOut();
 
       toast({
-        title: "Cuenta creada",
-        description: "Ahora inicia sesión con tus credenciales.",
+        title: 'Cuenta creada',
+        description: 'Ahora inicia sesión con tus credenciales.',
       });
 
-      navigate("/login", { replace: true });
+      navigate('/login', { replace: true });
 
     } catch (error) {
       console.error(error);
       toast({
-        title: "Error al registrarte",
+        title: 'Error al registrarte',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };

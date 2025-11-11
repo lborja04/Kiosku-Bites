@@ -1,4 +1,3 @@
-import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Heart, Users, Leaf, Target, Eye } from 'lucide-react';
@@ -7,26 +6,26 @@ const OurStory = () => {
   const values = [
     {
       icon: <Leaf className="w-8 h-8" />,
-      title: "Sostenibilidad",
-      description: "Reducimos el desperdicio alimentario conectando a personas con comida deliciosa que de otra manera se desperdiciaría."
+  title: 'Sostenibilidad',
+  description: 'Reducimos el desperdicio alimentario conectando a personas con comida deliciosa que de otra manera se desperdiciaría.'
     },
     {
       icon: <Heart className="w-8 h-8" />,
-      title: "Comunidad",
-      description: "Creamos vínculos entre locales y clientes, fortaleciendo la economía local y las relaciones comunitarias."
+  title: 'Comunidad',
+  description: 'Creamos vínculos entre locales y clientes, fortaleciendo la economía local y las relaciones comunitarias.'
     },
     {
       icon: <Users className="w-8 h-8" />,
-      title: "Accesibilidad",
-      description: "Hacemos que la comida de calidad sea accesible para todos, sin importar el presupuesto."
+  title: 'Accesibilidad',
+  description: 'Hacemos que la comida de calidad sea accesible para todos, sin importar el presupuesto.'
     }
   ];
 
   const stats = [
-    { number: "50,000+", label: "Comidas salvadas" },
-    { number: "1,200+", label: "Locales asociados" },
-    { number: "25,000+", label: "Usuarios activos" },
-    { number: "75%", label: "Reducción de desperdicio" }
+  { number: '50,000+', label: 'Comidas salvadas' },
+  { number: '1,200+', label: 'Locales asociados' },
+  { number: '25,000+', label: 'Usuarios activos' },
+  { number: '75%', label: 'Reducción de desperdicio' }
   ];
 
   return (

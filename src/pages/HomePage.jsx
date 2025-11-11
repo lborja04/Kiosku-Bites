@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not required (automatic JSX runtime)
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -9,44 +9,44 @@ import { toast } from '@/components/ui/use-toast';
 const HomePage = () => {
   const handleDownloadApp = () => {
     toast({
-      title: "🚧 ¡Próximamente!",
-      description: "Nuestra app está en desarrollo. ¡Gracias por tu interés! 🚀",
+      title: '🚧 ¡Próximamente!',
+      description: 'Nuestra app está en desarrollo. ¡Gracias por tu interés! 🚀',
     });
   };
 
   const steps = [
     {
       icon: <Search className="w-8 h-8" />,
-      title: "Explora",
-      description: "Descubre combos increíbles cerca de ti con descuentos de hasta el 70%."
+      title: 'Explora',
+      description: 'Descubre combos increíbles cerca de ti con descuentos de hasta el 70%.',
     },
     {
       icon: <Clock className="w-8 h-8" />,
-      title: "Reserva",
-      description: "Reserva tu combo favorito en segundos y asegura tu comida."
+  title: 'Reserva',
+  description: 'Reserva tu combo favorito en segundos y asegura tu comida.',
     },
     {
       icon: <Utensils className="w-8 h-8" />,
-      title: "Disfruta",
-      description: "Recoge tu pedido y disfruta de comida deliciosa a un precio increíble."
+  title: 'Disfruta',
+  description: 'Recoge tu pedido y disfruta de comida deliciosa a un precio increíble.',
     }
   ];
 
   const whyChooseUs = [
     {
       icon: <Heart className="w-8 h-8 text-primary" />,
-      title: "Combate el Desperdicio",
-      description: "Cada combo que compras es un plato de comida deliciosa que se salva, reduciendo el impacto ambiental."
+      title: 'Combate el Desperdicio',
+      description: 'Cada combo que compras es un plato de comida deliciosa que se salva, reduciendo el impacto ambiental.',
     },
     {
       icon: <Users className="w-8 h-8 text-primary" />,
-      title: "Apoya a Locales",
-      description: "Ayudas a los restaurantes y pequeños negocios de Guayaquil a generar ingresos extra y minimizar sus pérdidas."
+  title: 'Apoya a Locales',
+  description: 'Ayudas a los restaurantes y pequeños negocios de Guayaquil a generar ingresos extra y minimizar sus pérdidas.',
     },
     {
       icon: <CheckCircle className="w-8 h-8 text-primary" />,
-      title: "Ahorra Dinero",
-      description: "Disfruta de comida de alta calidad de tus lugares favoritos a una fracción del precio original."
+      title: 'Ahorra Dinero',
+      description: 'Disfruta de comida de alta calidad de tus lugares favoritos a una fracción del precio original.',
     }
   ];
 
@@ -60,7 +60,7 @@ const HomePage = () => {
       <div className="bg-white">
         <section className="relative min-h-screen flex items-center justify-center text-white">
           <div className="absolute inset-0 z-0">
-            <img  alt="Mesa de restaurante con varios platos de comida" class="w-full h-full object-cover" src="https://i.postimg.cc/rpv4gfKR/kiosku.png" />
+            <img  alt="Mesa de restaurante con varios platos de comida" className="w-full h-full object-cover" src="https://i.postimg.cc/rpv4gfKR/kiosku.png" />
             <div className="absolute inset-0 bg-black/60"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -109,7 +109,7 @@ const HomePage = () => {
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                <img  alt="Una persona usando un teléfono para pedir comida" class="rounded-2xl shadow-xl w-full h-auto" src="https://images.unsplash.com/photo-1607089084381-880f76a92919" />
+                <img  alt="Una persona usando un teléfono para pedir comida" className="rounded-2xl shadow-xl w-full h-auto" src="https://images.unsplash.com/photo-1607089084381-880f76a92919" />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
@@ -183,7 +183,7 @@ const HomePage = () => {
                   viewport={{ once: true }}
                   className="lg:order-last"
               >
-                  <img  alt="Gráfico mostrando la misión y visión de la empresa" class="rounded-2xl shadow-xl w-full h-auto" src="https://i.postimg.cc/15JNbm8Q/mision.jpg" />
+                  <img  alt="Gráfico mostrando la misión y visión de la empresa" className="rounded-2xl shadow-xl w-full h-auto" src="https://i.postimg.cc/15JNbm8Q/mision.jpg" />
               </motion.div>
               <motion.div
                   initial={{ opacity: 0, x: -50 }}

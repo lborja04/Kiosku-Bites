@@ -12,6 +12,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import ForBusinessPage from '@/pages/ForBusinessPage';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import PropTypes from 'prop-types';
 import BusinessDashboard from '@/pages/business/BusinessDashboard';
 import CustomerDashboard from '@/pages/customer/CustomerDashboard';
 import ShoppingCart from '@/pages/ShoppingCart';
@@ -25,6 +26,11 @@ const PrivateRoute = ({ children, role }) => {
     return <Navigate to="/" replace />;
   }
   return children;
+};
+
+PrivateRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+  role: PropTypes.string,
 };
 
 function AppContent() {

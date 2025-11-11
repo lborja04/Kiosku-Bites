@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Mail, MapPin, Phone, Send, Facebook, Instagram, Twitter } from 'lucide-react';
@@ -23,50 +23,50 @@ const Contact = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     toast({
-      title: "🚧 Esta función no está implementada aún",
-      description: "¡No te preocupes! Puedes solicitarla en tu próximo mensaje 🚀",
+      title: '🚧 Esta función no está implementada aún',
+      description: '¡No te preocupes! Puedes solicitarla en tu próximo mensaje 🚀',
     });
   };
 
   const contactInfo = [
     {
       icon: <Mail className="w-6 h-6" />,
-      title: "Email",
-      content: "hola@kioskubites.com",
-      description: "Escríbenos y te responderemos en menos de 24 horas."
+      title: 'Email',
+      content: 'hola@kioskubites.com',
+      description: 'Escríbenos y te responderemos en menos de 24 horas.'
     },
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Oficina",
-      content: "Guayaquil, Ecuador",
-      description: "Av. 9 de Octubre y Malecón Simón Bolívar"
+      title: 'Oficina',
+      content: 'Guayaquil, Ecuador',
+      description: 'Av. 9 de Octubre y Malecón Simón Bolívar'
     },
     {
       icon: <Phone className="w-6 h-6" />,
-      title: "Teléfono",
-      content: "+593 4 123 4567",
-      description: "Lunes a Viernes de 9:00 a 18:00"
+      title: 'Teléfono',
+      content: '+593 4 123 4567',
+      description: 'Lunes a Viernes de 9:00 a 18:00'
     }
   ];
 
   const socialLinks = [
     {
       icon: <Facebook className="w-6 h-6" />,
-      name: "Facebook",
-      url: "#",
-      color: "hover:text-blue-600"
+      name: 'Facebook',
+      url: '#',
+      color: 'hover:text-blue-600'
     },
     {
       icon: <Instagram className="w-6 h-6" />,
-      name: "Instagram",
-      url: "#",
-      color: "hover:text-pink-600"
+      name: 'Instagram',
+      url: '#',
+      color: 'hover:text-pink-600'
     },
     {
       icon: <Twitter className="w-6 h-6" />,
-      name: "Twitter",
-      url: "#",
-      color: "hover:text-blue-400"
+      name: 'Twitter',
+      url: '#',
+      color: 'hover:text-blue-400'
     }
   ];
 
@@ -299,7 +299,7 @@ const Contact = () => {
                   ¿Cómo puedo registrar mi local?
                 </h3>
                 <p className="text-gray-600">
-                  ¡Es muy fácil! Ve a nuestra sección "Para Empresas" y sigue los pasos. Nuestro equipo te guiará en todo el proceso de registro.
+                  ¡Es muy fácil! Ve a nuestra sección &quot;Para Empresas&quot; y sigue los pasos. Nuestro equipo te guiará en todo el proceso de registro.
                 </p>
               </motion.div>
             </div>

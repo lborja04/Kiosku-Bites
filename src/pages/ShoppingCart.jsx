@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard, X } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
@@ -32,15 +32,15 @@ const ShoppingCart = () => {
     const updatedCart = cartItems.filter(item => item.id !== id);
     updateCart(updatedCart);
     toast({
-      title: "Combo eliminado",
-      description: "El combo ha sido eliminado de tu carrito.",
+      title: 'Combo eliminado',
+      description: 'El combo ha sido eliminado de tu carrito.',
     });
   };
 
   const handleCheckout = () => {
     toast({
-      title: "Procesando pedido...",
-      description: "🚧 ¡Esta función no está implementada aún, pero tu pedido ha sido simulado! 🚀",
+      title: 'Procesando pedido...',
+      description: '🚧 ¡Esta función no está implementada aún, pero tu pedido ha sido simulado! 🚀',
     });
     localStorage.removeItem('cart');
     
@@ -61,10 +61,10 @@ const ShoppingCart = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Carrito de Compras - KIOSKU BITES</title>
-        <meta name="description" content="Revisa y confirma tu pedido de combos." />
-      </Helmet>
+          <Helmet>
+            <title>Carrito de Compras - KIOSKU BITES</title>
+            <meta name='description' content='Revisa y confirma tu pedido de combos.' />
+          </Helmet>
       <div className="min-h-screen bg-gray-50 pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>

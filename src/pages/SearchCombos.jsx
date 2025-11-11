@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -9,81 +9,81 @@ import { toast } from '@/components/ui/use-toast';
 const combos = [
   {
     id: 1,
-    name: "Combo Bolón Power",
-    restaurant: "El Cevichero",
+    name: 'Combo Bolón Power',
+    restaurant: 'El Cevichero',
     rating: 4.8,
     reviews: 124,
     originalPrice: 8,
     discountPrice: 4,
-    image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg",
-    description: "Un delicioso bolón de verde (mixto, queso o chicharrón) acompañado de un bistec de carne jugoso y un café pasado. ¡El desayuno perfecto para empezar el día con energía y sin desperdicio!",
-    pickupTime: "09:00 - 11:00",
-    distance: "1.5 km"
+    image: 'https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg',
+    description: 'Un delicioso bolón de verde (mixto, queso o chicharrón) acompañado de un bistec de carne jugoso y un café pasado. ¡El desayuno perfecto para empezar el día con energía y sin desperdicio!',
+    pickupTime: '09:00 - 11:00',
+    distance: '1.5 km'
   },
   {
     id: 2,
-    name: "Combo Encebollado Resucitador",
-    restaurant: "Picantería La Lojanita",
+    name: 'Combo Encebollado Resucitador',
+    restaurant: 'Picantería La Lojanita',
     rating: 4.9,
     reviews: 89,
     originalPrice: 7,
     discountPrice: 3.5,
-    image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg",
-    description: "Nuestro famoso encebollado de pescado con extra yuca, chifles y una porción de arroz. ¡El combo que te devuelve a la vida, hecho con el pescado fresco del día!",
-    pickupTime: "12:00 - 14:00",
-    distance: "2.2 km"
+    image: 'https://i.postimg.cc/G2Txw4pW/encebollado.jpg',
+    description: 'Nuestro famoso encebollado de pescado con extra yuca, chifles y una porción de arroz. ¡El combo que te devuelve a la vida, hecho con el pescado fresco del día!',
+    pickupTime: '12:00 - 14:00',
+    distance: '2.2 km'
   },
   {
     id: 3,
-    name: "Combo Menestra Sorpresa",
-    restaurant: "Asados de la Garzota",
+    name: 'Combo Menestra Sorpresa',
+    restaurant: 'Asados de la Garzota',
     rating: 4.7,
     reviews: 156,
     originalPrice: 10,
     discountPrice: 5,
-    image: "https://i.postimg.cc/mg33TxBr/CARNE-ASADA-CON-ARROZ-Y-MENESTRA.jpg",
-    description: "Una generosa porción de menestra de lenteja o fréjol, con la carne asada del día (res, pollo o cerdo), patacones y ensalada fresca. ¡Sabor casero garantizado!",
-    pickupTime: "18:00 - 20:00",
-    distance: "0.8 km"
+    image: 'https://i.postimg.cc/mg33TxBr/CARNE-ASADA-CON-ARROZ-Y-MENESTRA.jpg',
+    description: 'Una generosa porción de menestra de lenteja o fréjol, con la carne asada del día (res, pollo o cerdo), patacones y ensalada fresca. ¡Sabor casero garantizado!',
+    pickupTime: '18:00 - 20:00',
+    distance: '0.8 km'
   },
   {
     id: 4,
-    name: "Combo Guatita Especial",
-    restaurant: "El Rincón Manabita",
+    name: 'Combo Guatita Especial',
+    restaurant: 'El Rincón Manabita',
     rating: 4.6,
     reviews: 203,
     originalPrice: 9,
     discountPrice: 4.5,
-    image: "https://i.postimg.cc/j5TSK9qR/guatita.jpg",
-    description: "La tradicional guatita con maní, acompañada de arroz blanco y aguacate. Un plato criollo que no te puedes perder, ¡a un precio increíble!",
-    pickupTime: "13:00 - 15:00",
-    distance: "3.1 km"
+    image: 'https://i.postimg.cc/j5TSK9qR/guatita.jpg',
+    description: 'La tradicional guatita con maní, acompañada de arroz blanco y aguacate. Un plato criollo que no te puedes perder, ¡a un precio increíble!',
+    pickupTime: '13:00 - 15:00',
+    distance: '3.1 km'
   },
   {
     id: 5,
-    name: "Combo Pan de Yuca Calientito",
-    restaurant: "La Casa del Pan de Yuca",
+    name: 'Combo Pan de Yuca Calientito',
+    restaurant: 'La Casa del Pan de Yuca',
     rating: 4.9,
     reviews: 78,
     originalPrice: 5,
     discountPrice: 2.5,
-    image: "https://i.postimg.cc/0NDyTxst/ecuador-2012-1114-YOGUR-Y-PAN-DE-YUCA.jpg",
-    description: "Una funda con 5 panes de yuca recién horneados y un yogurt de mora o durazno. ¡La merienda perfecta para compartir o disfrutar solo!",
-    pickupTime: "16:00 - 18:00",
-    distance: "0.5 km"
+    image: 'https://i.postimg.cc/0NDyTxst/ecuador-2012-1114-YOGUR-Y-PAN-DE-YUCA.jpg',
+    description: 'Una funda con 5 panes de yuca recién horneados y un yogurt de mora o durazno. ¡La merienda perfecta para compartir o disfrutar solo!',
+    pickupTime: '16:00 - 18:00',
+    distance: '0.5 km'
   },
   {
     id: 6,
-    name: "Combo Cangrejo Criollo",
-    restaurant: "El Cangrejal de Urdesa",
+    name: 'Combo Cangrejo Criollo',
+    restaurant: 'El Cangrejal de Urdesa',
     rating: 4.8,
     reviews: 167,
     originalPrice: 15,
     discountPrice: 7.5,
-    image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg",
-    description: "Un combo sorpresa con 2 o 3 cangrejos criollos (dependiendo del tamaño) preparados en nuestra salsa especial, con maduro cocinado y ensalada de cebolla.",
-    pickupTime: "19:00 - 21:00",
-    distance: "1.8 km"
+    image: 'https://i.postimg.cc/YCJSD0JG/cangrejo.jpg',
+    description: 'Un combo sorpresa con 2 o 3 cangrejos criollos (dependiendo del tamaño) preparados en nuestra salsa especial, con maduro cocinado y ensalada de cebolla.',
+    pickupTime: '19:00 - 21:00',
+    distance: '1.8 km'
   }
 ];
 
@@ -92,8 +92,8 @@ const SearchCombos = () => {
 
   const handleFilter = () => {
     toast({
-      title: "🚧 Esta función no está implementada aún",
-      description: "¡No te preocupes! Puedes solicitarla en tu próximo mensaje 🚀",
+      title: '🚧 Esta función no está implementada aún',
+      description: '¡No te preocupes! Puedes solicitarla en tu próximo mensaje 🚀',
     });
   };
 

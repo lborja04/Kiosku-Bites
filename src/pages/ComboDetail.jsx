@@ -10,110 +10,110 @@ import { useAuth } from '@/contexts/AuthContext';
 const allCombos = [
     {
       id: 1,
-      name: "Combo Bolón Power",
-      restaurant: "El Cevichero",
+  name: 'Combo Bolón Power',
+  restaurant: 'El Cevichero',
       rating: 4.8,
       reviewsCount: 124,
       originalPrice: 8,
       discountPrice: 4,
-      image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg",
-      description: "Un delicioso bolón de verde (mixto, queso o chicharrón) acompañado de un bistec de carne jugoso y un café pasado. ¡El desayuno perfecto para empezar el día con energía y sin desperdicio!",
-      content: ["Bolón de verde (a elección)", "Bistec de carne", "Café pasado"],
-      pickupTime: "09:00 - 11:00",
-      distance: "1.5 km",
+      image: 'https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg',
+      description: 'Un delicioso bolón de verde (mixto, queso o chicharrón) acompañado de un bistec de carne jugoso y un café pasado. ¡El desayuno perfecto para empezar el día con energía y sin desperdicio!',
+      content: ['Bolón de verde (a elección)', 'Bistec de carne', 'Café pasado'],
+      pickupTime: '09:00 - 11:00',
+      distance: '1.5 km',
       reviews: [
-        { user: "Carlos V.", rating: 5, comment: "¡El mejor bolón de Guayaquil! El bistec estaba suave y el café en su punto.", date: "2025-08-01" },
-        { user: "Ana M.", rating: 4, comment: "Muy bueno y contundente. Excelente precio.", date: "2025-07-28" },
+        { user: 'Carlos V.', rating: 5, comment: '¡El mejor bolón de Guayaquil! El bistec estaba suave y el café en su punto.', date: '2025-08-01' },
+        { user: 'Ana M.', rating: 4, comment: 'Muy bueno y contundente. Excelente precio.', date: '2025-07-28' },
       ]
     },
     {
       id: 2,
-      name: "Combo Encebollado Resucitador",
-      restaurant: "Picantería La Lojanita",
+  name: 'Combo Encebollado Resucitador',
+      restaurant: 'Picantería La Lojanita',
       rating: 4.9,
       reviewsCount: 89,
       originalPrice: 7,
       discountPrice: 3.5,
-      image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg",
-      description: "Nuestro famoso encebollado de pescado con extra yuca, chifles y una porción de arroz. ¡El combo que te devuelve a la vida, hecho con el pescado fresco del día!",
-      content: ["Encebollado de pescado", "Porción de chifles", "Porción de arroz", "Jugo natural"],
-      pickupTime: "12:00 - 14:00",
-      distance: "2.2 km",
+      image: 'https://i.postimg.cc/G2Txw4pW/encebollado.jpg',
+      description: 'Nuestro famoso encebollado de pescado con extra yuca, chifles y una porción de arroz. ¡El combo que te devuelve a la vida, hecho con el pescado fresco del día!',
+      content: ['Encebollado de pescado', 'Porción de chifles', 'Porción de arroz', 'Jugo natural'],
+      pickupTime: '12:00 - 14:00',
+      distance: '2.2 km',
       reviews: [
-        { user: "Luis R.", rating: 5, comment: "¡Levanta muertos! El mejor encebollado que he probado.", date: "2025-08-02" },
-        { user: "Sofía C.", rating: 5, comment: "Siempre delicioso y a un precio increíble. 100% recomendado.", date: "2025-07-30" },
+        { user: 'Luis R.', rating: 5, comment: '¡Levanta muertos! El mejor encebollado que he probado.', date: '2025-08-02' },
+        { user: 'Sofía C.', rating: 5, comment: 'Siempre delicioso y a un precio increíble. 100% recomendado.', date: '2025-07-30' },
       ]
     },
     {
       id: 3,
-      name: "Combo Menestra Sorpresa",
-      restaurant: "Asados de la Garzota",
+  name: 'Combo Menestra Sorpresa',
+      restaurant: 'Asados de la Garzota',
       rating: 4.7,
       reviewsCount: 156,
       originalPrice: 10,
       discountPrice: 5,
-      image: "https://i.postimg.cc/mg33TxBr/CARNE-ASADA-CON-ARROZ-Y-MENESTRA.jpg",
-      description: "Una generosa porción de menestra de lenteja o fréjol, con la carne asada del día (res, pollo o cerdo), patacones y ensalada fresca. ¡Sabor casero garantizado!",
-      content: ["Menestra del día", "Carne asada (sorpresa)", "Arroz", "Patacones"],
-      pickupTime: "18:00 - 20:00",
-      distance: "0.8 km",
+      image: 'https://i.postimg.cc/mg33TxBr/CARNE-ASADA-CON-ARROZ-Y-MENESTRA.jpg',
+      description: 'Una generosa porción de menestra de lenteja o fréjol, con la carne asada del día (res, pollo o cerdo), patacones y ensalada fresca. ¡Sabor casero garantizado!',
+      content: ['Menestra del día', 'Carne asada (sorpresa)', 'Arroz', 'Patacones'],
+      pickupTime: '18:00 - 20:00',
+      distance: '0.8 km',
       reviews: [
-        { user: "David G.", rating: 4, comment: "Buena porción, la carne estaba rica. Me tocó de res.", date: "2025-07-29" },
-        { user: "Laura P.", rating: 5, comment: "¡Delicioso! Como la comida de casa. Volveré a pedir.", date: "2025-08-01" },
+        { user: 'David G.', rating: 4, comment: 'Buena porción, la carne estaba rica. Me tocó de res.', date: '2025-07-29' },
+        { user: 'Laura P.', rating: 5, comment: '¡Delicioso! Como la comida de casa. Volveré a pedir.', date: '2025-08-01' },
       ]
     },
     {
       id: 4,
-      name: "Combo Guatita Especial",
-      restaurant: "El Rincón Manabita",
+  name: 'Combo Guatita Especial',
+      restaurant: 'El Rincón Manabita',
       rating: 4.6,
       reviewsCount: 203,
       originalPrice: 9,
       discountPrice: 4.5,
-      image: "https://i.postimg.cc/j5TSK9qR/guatita.jpg",
-      description: "La tradicional guatita con maní, acompañada de arroz blanco y aguacate. Un plato criollo que no te puedes perder, ¡a un precio increíble!",
-      content: ["Porción de guatita", "Arroz", "Aguacate"],
-      pickupTime: "13:00 - 15:00",
-      distance: "3.1 km",
+      image: 'https://i.postimg.cc/j5TSK9qR/guatita.jpg',
+      description: 'La tradicional guatita con maní, acompañada de arroz blanco y aguacate. Un plato criollo que no te puedes perder, ¡a un precio increíble!',
+      content: ['Porción de guatita', 'Arroz', 'Aguacate'],
+      pickupTime: '13:00 - 15:00',
+      distance: '3.1 km',
       reviews: [
-        { user: "Mario S.", rating: 5, comment: "La guatita estaba espectacular, bien espesita y con mucho sabor.", date: "2025-08-03" },
-        { user: "Fernanda V.", rating: 4, comment: "Muy rica, aunque un poco pequeña la porción para mi gusto.", date: "2025-07-25" },
+        { user: 'Mario S.', rating: 5, comment: 'La guatita estaba espectacular, bien espesita y con mucho sabor.', date: '2025-08-03' },
+        { user: 'Fernanda V.', rating: 4, comment: 'Muy rica, aunque un poco pequeña la porción para mi gusto.', date: '2025-07-25' },
       ]
     },
     {
       id: 5,
-      name: "Combo Pan de Yuca Calientito",
-      restaurant: "La Casa del Pan de Yuca",
+  name: 'Combo Pan de Yuca Calientito',
+      restaurant: 'La Casa del Pan de Yuca',
       rating: 4.9,
       reviewsCount: 78,
       originalPrice: 5,
       discountPrice: 2.5,
-      image: "https://i.postimg.cc/0NDyTxst/ecuador-2012-1114-YOGUR-Y-PAN-DE-YUCA.jpg",
-      description: "Una funda con 5 panes de yuca recién horneados y un yogurt de mora o durazno. ¡La merienda perfecta para compartir o disfrutar solo!",
-      content: ["5 panes de yuca", "Yogurt personal (mora o durazno)"],
-      pickupTime: "16:00 - 18:00",
-      distance: "0.5 km",
+      image: 'https://i.postimg.cc/0NDyTxst/ecuador-2012-1114-YOGUR-Y-PAN-DE-YUCA.jpg',
+      description: 'Una funda con 5 panes de yuca recién horneados y un yogurt de mora o durazno. ¡La merienda perfecta para compartir o disfrutar solo!',
+      content: ['5 panes de yuca', 'Yogurt personal (mora o durazno)'],
+      pickupTime: '16:00 - 18:00',
+      distance: '0.5 km',
       reviews: [
-        { user: "Isabel N.", rating: 5, comment: "¡Los mejores panes de yuca! Siempre calientitos y deliciosos.", date: "2025-08-04" },
-        { user: "Andrés T.", rating: 5, comment: "Adicto a este combo. El yogurt es el complemento perfecto.", date: "2025-08-02" },
+        { user: 'Isabel N.', rating: 5, comment: '¡Los mejores panes de yuca! Siempre calientitos y deliciosos.', date: '2025-08-04' },
+        { user: 'Andrés T.', rating: 5, comment: 'Adicto a este combo. El yogurt es el complemento perfecto.', date: '2025-08-02' },
       ]
     },
     {
       id: 6,
-      name: "Combo Cangrejo Criollo",
-      restaurant: "El Cangrejal de Urdesa",
+  name: 'Combo Cangrejo Criollo',
+      restaurant: 'El Cangrejal de Urdesa',
       rating: 4.8,
       reviewsCount: 167,
       originalPrice: 15,
       discountPrice: 7.5,
-      image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg",
-      description: "Un combo sorpresa con 2 o 3 cangrejos criollos (dependiendo del tamaño) preparados en nuestra salsa especial, con maduro cocinado y ensalada de cebolla.",
-      content: ["2-3 cangrejos criollos", "Maduro cocinado", "Ensalada de cebolla y tomate"],
-      pickupTime: "19:00 - 21:00",
-      distance: "1.8 km",
+      image: 'https://i.postimg.cc/YCJSD0JG/cangrejo.jpg',
+      description: 'Un combo sorpresa con 2 o 3 cangrejos criollos (dependiendo del tamaño) preparados en nuestra salsa especial, con maduro cocinado y ensalada de cebolla.',
+      content: ['2-3 cangrejos criollos', 'Maduro cocinado', 'Ensalada de cebolla y tomate'],
+      pickupTime: '19:00 - 21:00',
+      distance: '1.8 km',
       reviews: [
-        { user: "Roberto M.", rating: 5, comment: "¡Qué ofertón! Los cangrejos estaban gorditos y la salsa espectacular.", date: "2025-07-31" },
-        { user: "Valeria J.", rating: 4, comment: "Muy ricos, aunque es una lotería cuántos te tocan. ¡Pero vale la pena!", date: "2025-07-29" },
+        { user: 'Roberto M.', rating: 5, comment: '¡Qué ofertón! Los cangrejos estaban gorditos y la salsa espectacular.', date: '2025-07-31' },
+        { user: 'Valeria J.', rating: 4, comment: 'Muy ricos, aunque es una lotería cuántos te tocan. ¡Pero vale la pena!', date: '2025-07-29' },
       ]
     }
 ];
@@ -128,9 +128,9 @@ const ComboDetail = () => {
   const handleReserve = () => {
     if (!user) {
       toast({
-        title: "Inicia sesión para reservar",
-        description: "Necesitas una cuenta para poder reservar combos.",
-        variant: "destructive",
+        title: 'Inicia sesión para reservar',
+        description: 'Necesitas una cuenta para poder reservar combos.',
+        variant: 'destructive',
       });
       navigate('/login');
       return;
@@ -138,9 +138,9 @@ const ComboDetail = () => {
     
     if (user.type === 'local') {
       toast({
-        title: "Acción no permitida",
-        description: "Las cuentas de local no pueden reservar combos.",
-        variant: "destructive",
+        title: 'Acción no permitida',
+        description: 'Las cuentas de local no pueden reservar combos.',
+        variant: 'destructive',
       });
       return;
     }
@@ -156,7 +156,7 @@ const ComboDetail = () => {
 
     localStorage.setItem('cart', JSON.stringify(cart));
     toast({
-      title: "¡Combo añadido!",
+      title: '¡Combo añadido!',
       description: `${combo.name} ha sido añadido a tu carrito.`,
     });
     navigate('/carrito');
@@ -166,7 +166,7 @@ const ComboDetail = () => {
     setSortOrder(order);
     toast({
       title: `Comentarios ordenados por: ${order === 'newest' ? 'Más recientes' : 'Mejor calificación'}`,
-      description: "¡Funcionalidad de ordenamiento aplicada!",
+      description: '¡Funcionalidad de ordenamiento aplicada!',
     });
   };
 
@@ -296,7 +296,7 @@ const ComboDetail = () => {
                             ))}
                           </div>
                         </div>
-                        <p className="text-gray-600 italic">"{review.comment}"</p>
+                        <p className="text-gray-600 italic">&quot;{review.comment}&quot;</p>
                         <p className="text-xs text-gray-400 mt-2 text-right">{new Date(review.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                       </motion.div>
                     ))}

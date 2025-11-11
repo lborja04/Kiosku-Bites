@@ -21,15 +21,15 @@ const LoginPage = () => {
       const user = auth.currentUser;
       if (!user) return;
 
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (!userDoc.exists()) return;
 
       const userType = userDoc.data().type;
 
-      if (userType === "cliente") {
-        navigate("/dashboard/cliente", { replace: true });
-      } else if (userType === "local") {
-        navigate("/dashboard/local", { replace: true });
+      if (userType === 'cliente') {
+        navigate('/dashboard/cliente', { replace: true });
+      } else if (userType === 'local') {
+        navigate('/dashboard/local', { replace: true });
       }
     };
     checkUserType();
@@ -40,9 +40,9 @@ const LoginPage = () => {
 
     if (!email || !password) {
       toast({
-        title: "Error de inicio de sesión",
-        description: "Por favor, introduce tu correo y contraseña.",
-        variant: "destructive",
+        title: 'Error de inicio de sesión',
+        description: 'Por favor, introduce tu correo y contraseña.',
+        variant: 'destructive',
       });
       return;
     }
@@ -51,9 +51,9 @@ const LoginPage = () => {
       const userCredential = await loginWithEmail(email, password);
       const firebaseUser = userCredential.user;
 
-      const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (!userDoc.exists()) {
-        throw new Error("Usuario sin datos en Firestore");
+        throw new Error('Usuario sin datos en Firestore');
       }
 
       const userData = userDoc.data();
@@ -61,27 +61,27 @@ const LoginPage = () => {
       login({
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: userData.nombre || userData.nombreLocal || "Usuario",
+        name: userData.nombre || userData.nombreLocal || 'Usuario',
         type: userData.type,
       });
 
       toast({
-        title: "¡Bienvenido!",
+        title: '¡Bienvenido!',
         description: `Sesión iniciada como ${userData.type.toUpperCase()}.`,
       });
 
-      if (userData.type === "cliente") {
-        navigate("/dashboard/cliente", { replace: true });
-      } else if (userData.type === "local") {
-        navigate("/dashboard/local", { replace: true });
+      if (userData.type === 'cliente') {
+        navigate('/dashboard/cliente', { replace: true });
+      } else if (userData.type === 'local') {
+        navigate('/dashboard/local', { replace: true });
       }
 
     } catch (error) {
-      console.error("Firebase login error:", error);
+      console.error('Firebase login error:', error);
       toast({
-        title: "Error de inicio de sesión",
-        description: "Credenciales inválidas o usuario no encontrado.",
-        variant: "destructive",
+        title: 'Error de inicio de sesión',
+        description: 'Credenciales inválidas o usuario no encontrado.',
+        variant: 'destructive',
       });
     }
   };

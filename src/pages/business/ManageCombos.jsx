@@ -4,11 +4,12 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import PropTypes from 'prop-types';
 
 const initialCombos = [
-  { id: 1, name: "Combo Bolón Power", price: 4.00, status: 'Activo', image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
-  { id: 2, name: "Combo Encebollado Resucitador", price: 3.50, status: 'Activo', image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
-  { id: 3, name: "Combo Cangrejo Criollo", price: 7.50, status: 'Agotado', image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg", description: "2-3 cangrejos criollos en nuestra salsa especial." },
+  { id: 1, name: 'Combo Bolón Power', price: 4.0, status: 'Activo', image: 'https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg', description: 'Un delicioso bolón de verde con bistec de carne y café pasado.' },
+  { id: 2, name: 'Combo Encebollado Resucitador', price: 3.5, status: 'Activo', image: 'https://i.postimg.cc/G2Txw4pW/encebollado.jpg', description: 'Nuestro famoso encebollado de pescado con chifles y arroz.' },
+  { id: 3, name: 'Combo Cangrejo Criollo', price: 7.5, status: 'Agotado', image: 'https://i.postimg.cc/YCJSD0JG/cangrejo.jpg', description: '2-3 cangrejos criollos en nuestra salsa especial.' },
 ];
 
 const ComboForm = ({ combo, onSave, onCancel }) => {
@@ -49,7 +50,7 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">URL de la Imagen</label>
-          <input type="text" name="image" value={formData.image} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/image.jpg" />
+          <input type="text" name="image" value={formData.image} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder='https://example.com/image.jpg' />
         </div>
         <div className="flex justify-end gap-4">
           <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
@@ -58,6 +59,19 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
       </form>
     </motion.div>
   );
+};
+
+ComboForm.propTypes = {
+  combo: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    description: PropTypes.string,
+    price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    image: PropTypes.string,
+    status: PropTypes.string,
+  }),
+  onSave: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
 };
 
 const ManageCombos = () => {
@@ -78,10 +92,10 @@ const ManageCombos = () => {
     let updatedCombos;
     if (editingCombo) {
       updatedCombos = combos.map(c => c.id === comboData.id ? comboData : c);
-      toast({ title: "¡Combo actualizado!", description: "El combo ha sido modificado exitosamente." });
+  toast({ title: '¡Combo actualizado!', description: 'El combo ha sido modificado exitosamente.' });
     } else {
       updatedCombos = [...combos, comboData];
-      toast({ title: "¡Combo agregado!", description: "El nuevo combo ya está disponible." });
+  toast({ title: '¡Combo agregado!', description: 'El nuevo combo ya está disponible.' });
     }
     setCombos(updatedCombos);
     updateLocalStorage(updatedCombos);
@@ -90,11 +104,11 @@ const ManageCombos = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar este combo?")) {
+  if (window.confirm('¿Estás seguro de que quieres eliminar este combo?')) {
       const updatedCombos = combos.filter(c => c.id !== id);
       setCombos(updatedCombos);
       updateLocalStorage(updatedCombos);
-      toast({ title: "¡Combo eliminado!", variant: "destructive" });
+  toast({ title: '¡Combo eliminado!', variant: 'destructive' });
     }
   };
 

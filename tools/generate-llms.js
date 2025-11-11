@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 
 import fs from 'fs';
 import path from 'path';
@@ -24,14 +25,14 @@ const EXTRACTION_REGEX = {
   helmet: /<Helmet[^>]*?>([\s\S]*?)<\/Helmet>/i,
   helmetTest: /<Helmet[\s\S]*?<\/Helmet>/i,
   title: /<title[^>]*?>\s*(.*?)\s*<\/title>/i,
-  description: /<meta\s+name=["']description["']\s+content=["'](.*?)["']/i
+  description: /<meta\s+name=["']description["']\s+content=["'](.*?)['"]/i
 };
 
 function cleanContent(content) {
   return content
     .replace(CLEAN_CONTENT_REGEX.comments, '')
-    .replace(CLEAN_CONTENT_REGEX.templateLiterals, '""')
-    .replace(CLEAN_CONTENT_REGEX.strings, '""');
+  .replace(CLEAN_CONTENT_REGEX.templateLiterals, '')
+  .replace(CLEAN_CONTENT_REGEX.strings, '');
 }
 
 function cleanText(text) {
@@ -39,11 +40,11 @@ function cleanText(text) {
   
   return text
     .replace(CLEAN_CONTENT_REGEX.jsxExpressions, '')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.quot, '"')
+  .replace(CLEAN_CONTENT_REGEX.htmlEntities.quot, String.fromCharCode(34))
     .replace(CLEAN_CONTENT_REGEX.htmlEntities.amp, '&')
     .replace(CLEAN_CONTENT_REGEX.htmlEntities.lt, '<')
     .replace(CLEAN_CONTENT_REGEX.htmlEntities.gt, '>')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.apos, "'")
+  .replace(CLEAN_CONTENT_REGEX.htmlEntities.apos, String.fromCharCode(39))
     .trim();
 }
 
@@ -173,7 +174,6 @@ function main() {
   ensureDirectoryExists(path.dirname(outputPath));
   fs.writeFileSync(outputPath, llmsTxtContent, 'utf8');
 }
-
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 
 if (isMainModule) {

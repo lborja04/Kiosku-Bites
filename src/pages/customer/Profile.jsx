@@ -10,8 +10,8 @@ const Profile = () => {
 
   const handleEdit = () => {
     toast({
-      title: "🚧 Función en desarrollo",
-      description: "Pronto podrás editar tu perfil.",
+      title: '🚧 Función en desarrollo',
+      description: 'Pronto podrás editar tu perfil.',
     });
   };
 

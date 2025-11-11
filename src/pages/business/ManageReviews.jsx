@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -7,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
 const mockReviews = [
-  { id: 1, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-10', rating: 5, comment: "¡Delicioso! El mejor bolón que he probado en mucho tiempo.", status: 'visible' },
-  { id: 2, user: 'Usuario Anónimo', combo: 'Combo Encebollado Resucitador', date: '2025-08-09', rating: 4, comment: "Muy bueno y a un precio increíble. Lo recomiendo.", status: 'visible' },
-  { id: 3, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-09', rating: 2, comment: "El café estaba un poco frío.", status: 'visible' },
-  { id: 4, user: 'Usuario Anónimo', combo: 'Combo Guatita Especial', date: '2025-08-08', rating: 5, comment: "¡Espectacular! Como hecho en casa. Volveré a pedir sin duda.", status: 'destacado' },
-  { id: 5, user: 'Usuario Anónimo', combo: 'Combo Cangrejo Criollo', date: '2025-08-07', rating: 3, comment: "Estaba bueno, pero me tocaron pocos cangrejos.", status: 'visible' },
+  { id: 1, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-10', rating: 5, comment: '¡Delicioso! El mejor bolón que he probado en mucho tiempo.', status: 'visible' },
+  { id: 2, user: 'Usuario Anónimo', combo: 'Combo Encebollado Resucitador', date: '2025-08-09', rating: 4, comment: 'Muy bueno y a un precio increíble. Lo recomiendo.', status: 'visible' },
+  { id: 3, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-09', rating: 2, comment: 'El café estaba un poco frío.', status: 'visible' },
+  { id: 4, user: 'Usuario Anónimo', combo: 'Combo Guatita Especial', date: '2025-08-08', rating: 5, comment: '¡Espectacular! Como hecho en casa. Volveré a pedir sin duda.', status: 'destacado' },
+  { id: 5, user: 'Usuario Anónimo', combo: 'Combo Cangrejo Criollo', date: '2025-08-07', rating: 3, comment: 'Estaba bueno, pero me tocaron pocos cangrejos.', status: 'visible' },
 ];
 
 const ManageReviews = () => {
@@ -101,7 +100,7 @@ const ManageReviews = () => {
                   </Button>
                 </div>
               </div>
-              <p className="mt-4 text-gray-700 italic">"{review.comment}"</p>
+              <p className="mt-4 text-gray-700 italic">&quot;{review.comment}&quot;</p>
             </motion.div>
           ))}
         </div>
