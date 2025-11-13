@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard, X } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
@@ -46,7 +46,7 @@ const ShoppingCart = () => {
     
     const orders = JSON.parse(localStorage.getItem('orders')) || [];
     const newOrder = {
-        id: new Date().getTime(),
+        id: Date.now(),
         date: new Date().toISOString(),
         items: cartItems,
         total: subtotal,
@@ -120,7 +120,7 @@ const ShoppingCart = () => {
                     </div>
                     <div className="border-t pt-4 flex justify-between font-bold text-lg">
                       <span>Total:</span>
-                      <span>${(subtotal + 0.50).toFixed(2)}</span>
+                      <span>${(subtotal + 0.5).toFixed(2)}</span>
                     </div>
                     <div className="mt-6 bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
                       <p><span className="font-bold">Recogida:</span> El Cevichero</p>

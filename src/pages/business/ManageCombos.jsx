@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
@@ -6,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
 const initialCombos = [
-  { id: 1, name: "Combo Bolón Power", price: 4.00, status: 'Activo', image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
-  { id: 2, name: "Combo Encebollado Resucitador", price: 3.50, status: 'Activo', image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
-  { id: 3, name: "Combo Cangrejo Criollo", price: 7.50, status: 'Agotado', image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg", description: "2-3 cangrejos criollos en nuestra salsa especial." },
+  { id: 1, name: "Combo Bolón Power", price: 4, status: 'Activo', image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
+  { id: 2, name: "Combo Encebollado Resucitador", price: 3.5, status: 'Activo', image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
+  { id: 3, name: "Combo Cangrejo Criollo", price: 7.5, status: 'Agotado', image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg", description: "2-3 cangrejos criollos en nuestra salsa especial." },
 ];
 
 const ComboForm = ({ combo, onSave, onCancel }) => {
@@ -35,21 +36,21 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre del Combo</label>
-            <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required />
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del Combo</label>
+            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Precio</label>
-            <input type="number" name="price" value={formData.price} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required step="0.01" />
+            <label htmlFor="price" className="block text-sm font-medium text-gray-700">Precio</label>
+            <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required step="0.01" />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Descripción</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} rows="3" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción</label>
+          <textarea id="description" name="description" value={formData.description} onChange={handleChange} rows="3" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">URL de la Imagen</label>
-          <input type="text" name="image" value={formData.image} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/image.jpg" />
+          <label htmlFor="image" className="block text-sm font-medium text-gray-700">URL de la Imagen</label>
+          <input type="text" id="image" name="image" value={formData.image} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/image.jpg" />
         </div>
         <div className="flex justify-end gap-4">
           <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
@@ -60,6 +61,11 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
   );
 };
 
+ComboForm.propTypes = {
+  combo: PropTypes.object,
+  onSave: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+};
 const ManageCombos = () => {
   const [combos, setCombos] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -90,7 +96,7 @@ const ManageCombos = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar este combo?")) {
+    if (globalThis.confirm("¿Estás seguro de que quieres eliminar este combo?")) {
       const updatedCombos = combos.filter(c => c.id !== id);
       setCombos(updatedCombos);
       updateLocalStorage(updatedCombos);

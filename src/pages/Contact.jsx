@@ -178,8 +178,8 @@ const Contact = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Información de contacto</h2>
                   <div className="space-y-6">
-                    {contactInfo.map((info, index) => (
-                      <div key={index} className="flex items-start space-x-4">
+                    {contactInfo.map((info) => (
+                      <div key={info.title} className="flex items-start space-x-4">
                         <div className="w-12 h-12 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white flex-shrink-0">
                           {info.icon}
                         </div>
@@ -196,9 +196,9 @@ const Contact = () => {
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Síguenos en redes sociales</h3>
                   <div className="flex space-x-4">
-                    {socialLinks.map((social, index) => (
+                    {socialLinks.map((social) => (
                       <a
-                        key={index}
+                        key={social.name}
                         href={social.url}
                         className={`w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 transition-colors ${social.color}`}
                         aria-label={social.name}
@@ -210,7 +210,7 @@ const Contact = () => {
                 </div>
 
                 <div className="relative">
-                  <img  class="w-full h-64 object-cover rounded-2xl shadow-lg" alt="Mapa de la ciudad de Guayaquil" src="https://images.unsplash.com/photo-1653754935284-d6d7119f0678" />
+                  <img  className="w-full h-64 object-cover rounded-2xl shadow-lg" alt="Mapa de la ciudad de Guayaquil" src="https://images.unsplash.com/photo-1653754935284-d6d7119f0678" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent rounded-2xl flex items-end">
                     <div className="p-6 text-white">
                       <h4 className="text-lg font-semibold">¡Ven a visitarnos!</h4>

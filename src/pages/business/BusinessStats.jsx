@@ -69,7 +69,7 @@ const BusinessStats = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {statCards.map((card, index) => (
             <motion.div
-              key={index}
+              key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -111,7 +111,7 @@ const BusinessStats = () => {
             <h2 className="text-xl font-bold mb-4">Combos Más Vendidos</h2>
             <ul className="space-y-3">
               {bestSellingCombos.map((combo, index) => (
-                <li key={index} className="flex justify-between items-center text-sm sm:text-base">
+                <li key={combo.name} className="flex justify-between items-center text-sm sm:text-base">
                   <span className="flex-1 pr-2">{index + 1}. {combo.name}</span>
                   <span className="font-bold bg-gray-100 px-2 py-1 rounded text-xs sm:text-sm">{combo.sold} vendidos</span>
                 </li>
@@ -122,7 +122,7 @@ const BusinessStats = () => {
             <h2 className="text-xl font-bold mb-4">Días de Mayor Actividad</h2>
             <ul className="space-y-3">
               {busiestDays.map((day, index) => (
-                <li key={index} className="flex justify-between items-center text-sm sm:text-base">
+                <li key={day.day} className="flex justify-between items-center text-sm sm:text-base">
                   <span>{index + 1}. {day.day}</span>
                   <div className="w-1/2 bg-gray-200 rounded-full h-2.5">
                     <div className="bg-secondary h-2.5 rounded-full" style={{ width: `${day.activity}%` }}></div>

@@ -60,7 +60,7 @@ const HomePage = () => {
       <div className="bg-white">
         <section className="relative min-h-screen flex items-center justify-center text-white">
           <div className="absolute inset-0 z-0">
-            <img  alt="Mesa de restaurante con varios platos de comida" class="w-full h-full object-cover" src="https://i.postimg.cc/rpv4gfKR/kiosku.png" />
+            <img  alt="Mesa de restaurante con varios platos de comida" className="w-full h-full object-cover" src="https://i.postimg.cc/rpv4gfKR/kiosku.png" />
             <div className="absolute inset-0 bg-black/60"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -70,12 +70,11 @@ const HomePage = () => {
               transition={{ duration: 0.8 }}
             >
               <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-                Combos deliciosos,
+                {'Combos deliciosos,'}
                 <span className="block text-secondary">precios increíbles</span>
               </h1>
               <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-                Descubre comida increíble a precios reducidos mientras ayudas a 
-                reducir el desperdicio alimentario. ¡Gana tú, gana el planeta!
+                Descubre comida increíble a precios reducidos mientras ayudas a reducir el desperdicio alimentario. ¡Gana tú, gana el planeta!
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/buscar-combos">
@@ -109,7 +108,7 @@ const HomePage = () => {
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                <img  alt="Una persona usando un teléfono para pedir comida" class="rounded-2xl shadow-xl w-full h-auto" src="https://images.unsplash.com/photo-1607089084381-880f76a92919" />
+                <img  alt="Una persona usando un teléfono para pedir comida" className="rounded-2xl shadow-xl w-full h-auto" src="https://images.unsplash.com/photo-1607089084381-880f76a92919" />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
@@ -121,12 +120,11 @@ const HomePage = () => {
                   ¿Cómo funciona KIOSKU BITES?
                 </h2>
                 <p className="text-xl text-gray-600 mb-8">
-                  En solo tres simples pasos puedes disfrutar de comida increíble 
-                  mientras contribuyes a un mundo más sostenible.
+                  En solo tres simples pasos puedes disfrutar de comida increíble mientras contribuyes a un mundo más sostenible.
                 </p>
                 <div className="space-y-6">
-                  {steps.map((step, index) => (
-                    <div key={index} className="flex items-start">
+                  {steps.map((step) => (
+                    <div key={step.title} className="flex items-start">
                       <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary text-white rounded-full mr-4">
                         {step.icon}
                       </div>
@@ -155,7 +153,7 @@ const HomePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {whyChooseUs.map((reason, index) => (
                 <motion.div
-                  key={index}
+                  key={reason.title}
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -183,7 +181,7 @@ const HomePage = () => {
                   viewport={{ once: true }}
                   className="lg:order-last"
               >
-                  <img  alt="Gráfico mostrando la misión y visión de la empresa" class="rounded-2xl shadow-xl w-full h-auto" src="https://i.postimg.cc/15JNbm8Q/mision.jpg" />
+                  <img  alt="Gráfico mostrando la misión y visión de la empresa" className="rounded-2xl shadow-xl w-full h-auto" src="https://i.postimg.cc/15JNbm8Q/mision.jpg" />
               </motion.div>
               <motion.div
                   initial={{ opacity: 0, x: -50 }}
@@ -223,8 +221,7 @@ const HomePage = () => {
                 ¿Tienes un local de comida?
               </h2>
               <p className="text-xl mb-8 max-w-3xl mx-auto opacity-90">
-                Únete a KIOSKU BITES y convierte tu exceso de comida en ingresos adicionales 
-                mientras ayudas al medio ambiente.
+                Únete a KIOSKU BITES y convierte tu exceso de comida en ingresos adicionales mientras ayudas al medio ambiente.
               </p>
               <Link to="/para-empresas">
                 <Button

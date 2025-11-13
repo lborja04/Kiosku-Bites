@@ -62,10 +62,11 @@ const RegisterPage = () => {
       return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre</label>
+            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
             <div className="mt-1 relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="nombre"
                 name="nombre"
                 type="text"
                 required
@@ -76,10 +77,11 @@ const RegisterPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Correo electrónico</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Correo electrónico</label>
             <div className="mt-1 relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="email"
                 name="email"
                 type="email"
                 required
@@ -90,10 +92,11 @@ const RegisterPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
             <div className="mt-1 relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="password"
                 name="password"
                 type="password"
                 required
@@ -106,15 +109,15 @@ const RegisterPage = () => {
         </motion.div>
       );
     }
-
     if (accountType === 'local') {
       return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre del local</label>
+            <label htmlFor="nombreLocal" className="block text-sm font-medium text-gray-700">Nombre del local</label>
             <div className="mt-1 relative">
               <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="nombreLocal"
                 name="nombreLocal"
                 type="text"
                 required
@@ -125,10 +128,11 @@ const RegisterPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre del dueño</label>
+            <label htmlFor="dueno" className="block text-sm font-medium text-gray-700">Nombre del dueño</label>
             <div className="mt-1 relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="dueno"
                 name="dueno"
                 type="text"
                 required
@@ -139,10 +143,11 @@ const RegisterPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Correo electrónico de contacto</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Correo electrónico de contacto</label>
             <div className="mt-1 relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="email"
                 name="email"
                 type="email"
                 required
@@ -153,10 +158,11 @@ const RegisterPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
             <div className="mt-1 relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="password"
                 name="password"
                 type="password"
                 required
@@ -235,7 +241,7 @@ const RegisterPage = () => {
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor="terms" className="font-medium text-gray-700">
-                      Acepto los <a href="#" className="text-primary hover:underline">Términos y Condiciones</a>
+                      Acepto los <Link to="/terminos" className="text-primary hover:underline">Términos y Condiciones</Link>
                     </label>
                   </div>
                 </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { DollarSign, Users, Trash2, TrendingUp, ArrowRight, CheckCircle } from 'lucide-react';
+import { DollarSign, Users, Trash2, TrendingUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ForBusinessPage = () => {
@@ -95,12 +95,12 @@ const ForBusinessPage = () => {
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {benefits.map((benefit, index) => (
+              {benefits.map((benefit) => (
                 <motion.div
-                  key={index}
+                  key={benefit.title}
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  transition={{ duration: 0.5 }}
                   viewport={{ once: true }}
                   className="bg-white rounded-xl p-6 shadow-lg text-center card-hover"
                 >
@@ -124,7 +124,7 @@ const ForBusinessPage = () => {
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                <img  class="rounded-2xl shadow-xl w-full h-auto" alt="Chef sonriente entregando una bolsa de comida para llevar" src="https://images.unsplash.com/photo-1690373620370-a58238d26d68" />
+                <img className="rounded-2xl shadow-xl w-full h-auto" alt="Chef sonriente entregando una bolsa de comida para llevar" src="https://images.unsplash.com/photo-1690373620370-a58238d26d68" />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
@@ -167,7 +167,7 @@ const ForBusinessPage = () => {
               viewport={{ once: true }}
               className="bg-white rounded-2xl p-8 shadow-2xl relative"
             >
-              <div className="absolute -top-8 -left-8 w-20 h-20 bg-secondary rounded-full flex items-center justify-center text-white text-5xl font-serif">“</div>
+              <div className="absolute -top-8 -left-8 w-20 h-20 bg-secondary rounded-full flex items-center justify-center text-white text-5xl font-serif">"</div>
               <blockquote className="text-xl italic text-gray-700">
                 "Desde que nos unimos a KIOSKU BITES, hemos reducido nuestro desperdicio de comida en casi un 80%. Además, hemos visto un flujo constante de nuevos clientes que vienen por los combos y terminan volviendo como clientes regulares. ¡Es una situación en la que todos ganan!"
               </blockquote>

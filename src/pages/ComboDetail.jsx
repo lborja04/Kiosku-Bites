@@ -120,7 +120,7 @@ const allCombos = [
 
 const ComboDetail = () => {
   const { id } = useParams();
-  const combo = allCombos.find(c => c.id === parseInt(id));
+  const combo = allCombos.find(c => c.id === Number.parseInt(id));
   const [sortOrder, setSortOrder] = useState('newest');
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -255,8 +255,8 @@ const ComboDetail = () => {
                 <div className="mt-8 bg-white p-6 rounded-xl shadow-md">
                   <h2 className="text-xl font-bold mb-3">¿Qué podría incluir tu combo?</h2>
                   <ul className="list-disc list-inside space-y-2 text-gray-700">
-                    {combo.content.map((item, index) => (
-                      <li key={index}>{item}</li>
+                    {combo.content.map((item) => (
+                      <li key={item}>{item}</li>
                     ))}
                   </ul>
                   <p className="text-sm text-gray-500 mt-4">El contenido exacto es una sorpresa basada en el excedente del día para garantizar la máxima frescura y reducir el desperdicio.</p>
@@ -278,7 +278,7 @@ const ComboDetail = () => {
                   <div className="space-y-6">
                     {sortedReviews.map((review, index) => (
                       <motion.div 
-                        key={index}
+                        key={`${review.user}-${review.date}`}
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -288,11 +288,8 @@ const ComboDetail = () => {
                         <div className="flex items-center mb-2">
                           <h3 className="font-semibold text-gray-800">{review.user}</h3>
                           <div className="flex items-center ml-auto">
-                            {[...Array(review.rating)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
-                            ))}
-                            {[...Array(5 - review.rating)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 text-gray-300" />
+                            {Array.from({ length: 5 }, (_, i) => i).map((starIndex) => (
+                              <Star key={starIndex} className={`w-4 h-4 ${starIndex < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
                             ))}
                           </div>
                         </div>
