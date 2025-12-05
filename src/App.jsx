@@ -21,7 +21,9 @@ const PrivateRoute = ({ children, role }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  if (role && user.type !== role) {
+  // Support both `type` and `tipo_usuario` keys on the user object
+  const userRole = user?.type || user?.tipo_usuario;
+  if (role && userRole !== role) {
     return <Navigate to="/" replace />;
   }
   return children;

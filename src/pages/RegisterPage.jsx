@@ -5,9 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Briefcase, Mail, Lock, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { auth, db } from '../services/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { signUpWithSupabase } from '../services/supabaseAuthClient';
 
 const RegisterPage = () => {
   const [accountType, setAccountType] = useState('cliente');
@@ -21,29 +19,38 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { email, password } = formData;
+    const nombre = accountType === 'local' ? formData.nombreLocal : formData.nombre;
+
+    if (!email || !password || !nombre) {
+      toast({
+        title: "Error",
+        description: "Por favor completa todos los campos.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      // Registrar usuario usando Supabase Auth (guardamos metadata con tipo de cuenta)
+      const extra = {};
+      if (accountType === 'local') {
+        extra.nombre_local = formData.nombreLocal;
+        extra.descripcion = formData.descripcion || null;
+        extra.telefono = formData.telefono || null;
+        extra.direccion = formData.direccion || null;
+      }
 
-      await setDoc(doc(db, 'users', user.uid), {
-        type: accountType,
-        ...formData,
-        createdAt: new Date(),
+      const result = await signUpWithSupabase({
+        email,
+        password,
+        nombre,
+        tipo_usuario: accountType,
+        extra,
       });
+      const authUser = result?.auth?.user || null;
 
-      await updateProfile(user, {
-        displayName: accountType === 'local' ? formData.nombreLocal : formData.nombre,
-      });
-
-      await auth.signOut();
-
-      toast({
-        title: "Cuenta creada",
-        description: "Ahora inicia sesión con tus credenciales.",
-      });
-
-      navigate("/login", { replace: true });
+      toast({ title: "Cuenta creada", description: "Ahora inicia sesión con tus credenciales." });
+      navigate('/login', { replace: true });
 
     } catch (error) {
       console.error(error);

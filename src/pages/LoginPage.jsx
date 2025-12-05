@@ -6,37 +6,18 @@ import { Mail, Lock, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { loginWithEmail } from '@/services/authService';
-import { auth, db } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { signInWithSupabase } from '../services/supabaseAuthClient';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState(''); //prueba@usuario.com
-  const [password, setPassword] = useState(''); //1234
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  useEffect(() => {
-    const checkUserType = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) return;
-
-      const userType = userDoc.data().type;
-
-      if (userType === "cliente") {
-        navigate("/dashboard/cliente", { replace: true });
-      } else if (userType === "local") {
-        navigate("/dashboard/local", { replace: true });
-      }
-    };
-    checkUserType();
-  }, [navigate]);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     if (!email || !password) {
       toast({
@@ -44,45 +25,47 @@ const LoginPage = () => {
         description: "Por favor, introduce tu correo y contraseña.",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
 
     try {
-      const userCredential = await loginWithEmail(email, password);
-      const firebaseUser = userCredential.user;
+      // Login con Supabase Auth (solo Auth, no consultamos tabla usuario)
+      const { auth } = await signInWithSupabase({ email, password });
 
-      const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-      if (!userDoc.exists()) {
-        throw new Error("Usuario sin datos en Firestore");
-      }
+      const tipo = auth?.user?.user_metadata?.tipo_usuario || 'cliente';
 
-      const userData = userDoc.data();
+      const payload = {
+        email: auth?.user?.email || email,
+        nombre: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
+        tipo_usuario: tipo,
+        // aliases for components that expect `name` / `type`
+        name: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
+        type: tipo,
+      };
 
-      login({
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: userData.nombre || userData.nombreLocal || "Usuario",
-        type: userData.type,
-      });
+      login(payload);
 
-      toast({
-        title: "¡Bienvenido!",
-        description: `Sesión iniciada como ${userData.type.toUpperCase()}.`,
-      });
+      toast({ title: '¡Bienvenido!', description: `Sesión iniciada como ${tipo}.` });
 
-      if (userData.type === "cliente") {
-        navigate("/dashboard/cliente", { replace: true });
-      } else if (userData.type === "local") {
-        navigate("/dashboard/local", { replace: true });
+      // Redirigir según tipo de usuario
+      if (tipo === 'cliente') {
+        navigate('/dashboard/cliente', { replace: true });
+      } else if (tipo === 'local' || tipo === 'negocio' || tipo === 'business') {
+        navigate('/dashboard/local', { replace: true });
+      } else {
+        navigate('/', { replace: true });
       }
 
     } catch (error) {
-      console.error("Firebase login error:", error);
+      console.error("Login error:", error);
       toast({
         title: "Error de inicio de sesión",
-        description: "Credenciales inválidas o usuario no encontrado.",
+        description: error.message || "Credenciales inválidas o usuario no encontrado.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,9 +134,9 @@ const LoginPage = () => {
                   </div>
 
                   <div>
-                    <Button type="submit" className="flex w-full justify-center btn-gradient py-3 text-lg">
+                    <Button type="submit" disabled={loading} className="flex w-full justify-center btn-gradient py-3 text-lg">
                       <LogIn className="w-5 h-5 mr-2" />
-                      Iniciar Sesión
+                      {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                     </Button>
                   </div>
                 </form>
