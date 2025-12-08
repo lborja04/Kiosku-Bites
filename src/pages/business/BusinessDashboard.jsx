@@ -1,17 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Package, BarChart2, Star, LogOut, Menu, X } from 'lucide-react';
+import { Package, BarChart2, Star, LogOut, Menu, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ManageCombos from '@/pages/business/ManageCombos';
 import BusinessStats from '@/pages/business/BusinessStats';
 import ManageReviews from '@/pages/business/ManageReviews';
 import { Button } from '@/components/ui/button';
+import { supabase } from '../../services/supabaseAuthClient';
+import LocalDetailsForm from '../../components/business/LocalDetailsForm';
 
 const BusinessDashboard = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [localDetailsComplete, setLocalDetailsComplete] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(true);
+  const [actualLocalId, setActualLocalId] = useState(null); // Estado para guardar el id_local (int8)
+
+  useEffect(() => {
+    const checkLocalDetails = async () => {
+      if (!user?.id) {
+        console.log('No user Auth ID available. Redirecting or showing error.');
+        setLoadingDetails(false);
+        setLocalDetailsComplete(false);
+        return;
+      }
+
+      try {
+        setLoadingDetails(true);
+        console.log('User Auth ID from AuthContext:', user.id);
+
+        // Paso 1: Obtener el id_usuario (int8) de la tabla 'usuario' usando el id_auth_supabase (UUID)
+        const { data: userData, error: userError } = await supabase
+          .from('usuario')
+          .select('id_usuario')
+          .eq('id_auth_supabase', user.id)
+          .single();
+
+        if (userError || !userData) {
+          console.error('Error fetching id_usuario from "usuario" table or user not found:', userError);
+          setLoadingDetails(false);
+          setLocalDetailsComplete(false);
+          return; // No se encontró el id_usuario correspondiente, no se puede continuar
+        }
+        
+        const localNumericId = userData.id_usuario;
+        setActualLocalId(localNumericId); // Guarda el ID numérico
+        console.log('Found actual local ID (int8):', localNumericId);
+
+        // Paso 2: Usar este id_usuario (int8) para consultar la tabla 'local'
+        const { data: localData, error: localError } = await supabase
+          .from('local')
+          .select('nombre_local, descripcion, telefono, direccion') // Eliminado 'contenido'
+          .eq('id_local', localNumericId); // Usar el ID numérico aquí
+
+        if (localError) {
+          console.error('Supabase error fetching local details:', localError);
+          setLocalDetailsComplete(false);
+          return;
+        }
+
+        const isComplete = localData && localData.length > 0 && 
+          localData[0].nombre_local && 
+          localData[0].descripcion && 
+          localData[0].telefono && 
+          localData[0].direccion; // Eliminado 'localData[0].contenido'
+        
+        console.log('Local details complete:', isComplete, 'Data:', localData);
+        setLocalDetailsComplete(isComplete);
+
+      } catch (err) {
+        console.error('Error checking local details in BusinessDashboard:', err);
+        setLocalDetailsComplete(false);
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+
+    checkLocalDetails();
+  }, [user?.id]); // Dependencia del UUID de Supabase Auth
 
   const navLinks = [
     { to: '', text: 'Estadísticas', icon: <BarChart2 className="w-5 h-5" /> },
@@ -22,6 +90,36 @@ const BusinessDashboard = () => {
   const handleLinkClick = () => {
     setIsMobileMenuOpen(false);
   };
+
+  const handleLocalDetailsComplete = () => {
+    setLocalDetailsComplete(true);
+  };
+
+  if (loadingDetails) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-xl text-gray-700">Verificando datos de tu local...</p>
+      </div>
+    );
+  }
+
+  // Si los datos del local no están completos y tenemos el ID numérico, muestra el formulario
+  if (!localDetailsComplete && actualLocalId !== null) {
+    return <LocalDetailsForm userId={actualLocalId} onComplete={handleLocalDetailsComplete} />;
+  }
+
+  // si localDetailsComplete es false y actualLocalId es null, no debería renderizar nada
+  // o redirigir a una página de error/configuración inicial si no se encuentra el usuario.
+  if (!user?.id || actualLocalId === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
+        <p className="text-xl text-red-600">No se pudo cargar la información de tu local o no estás autorizado.</p>
+        <Button onClick={logout} className="mt-4">Volver a iniciar sesión</Button>
+      </div>
+    );
+  }
+
 
   return (
     <>

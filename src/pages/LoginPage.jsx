@@ -14,7 +14,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -34,9 +34,8 @@ const LoginPage = () => {
 
       const tipo = auth?.user?.user_metadata?.tipo_usuario || 'cliente';
 
-      // CORRECCIÓN AQUÍ: Agregamos el ID
       const payload = {
-        id: auth.user.id, // <--- ¡IMPORTANTE! Faltaba esto
+        id: auth.user.id, // Este es el UUID de Supabase Auth
         email: auth?.user?.email || email,
         nombre: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
         tipo_usuario: tipo,
@@ -50,7 +49,8 @@ const LoginPage = () => {
 
       if (tipo === 'cliente') {
         navigate('/dashboard/cliente', { replace: true });
-      } else if (tipo === 'local' || tipo === 'negocio' || tipo === 'business') {
+      } else if (tipo === 'local') {
+        
         navigate('/dashboard/local', { replace: true });
       } else {
         navigate('/', { replace: true });
@@ -67,9 +67,6 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
-
-  
-
 
   return (
     <>
