@@ -30,16 +30,16 @@ const LoginPage = () => {
     }
 
     try {
-      // Login con Supabase Auth (solo Auth, no consultamos tabla usuario)
       const { auth } = await signInWithSupabase({ email, password });
 
       const tipo = auth?.user?.user_metadata?.tipo_usuario || 'cliente';
 
+      // CORRECCIÓN AQUÍ: Agregamos el ID
       const payload = {
+        id: auth.user.id, // <--- ¡IMPORTANTE! Faltaba esto
         email: auth?.user?.email || email,
         nombre: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
         tipo_usuario: tipo,
-        // aliases for components that expect `name` / `type`
         name: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
         type: tipo,
       };
@@ -48,7 +48,6 @@ const LoginPage = () => {
 
       toast({ title: '¡Bienvenido!', description: `Sesión iniciada como ${tipo}.` });
 
-      // Redirigir según tipo de usuario
       if (tipo === 'cliente') {
         navigate('/dashboard/cliente', { replace: true });
       } else if (tipo === 'local' || tipo === 'negocio' || tipo === 'business') {

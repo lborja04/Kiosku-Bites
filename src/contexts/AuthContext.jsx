@@ -13,18 +13,16 @@ function AuthProvider({ children }) {
 
     const init = async () => {
       try {
-        // Check Supabase Auth session first
         const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.warn('Error checking supabase session:', error);
-        }
+        if (error) console.warn('Error checking supabase session:', error);
 
         const sessionUser = data?.session?.user || null;
 
         if (mounted) {
           if (sessionUser) {
-            // Build payload from Auth user metadata
+            // CORRECCIÓN AQUÍ: Agregamos el ID
             const payload = {
+              id: sessionUser.id, // <--- ¡IMPORTANTE! Faltaba esto
               email: sessionUser.email,
               nombre: sessionUser?.user_metadata?.full_name || sessionUser.email,
               tipo_usuario: sessionUser?.user_metadata?.tipo_usuario || 'cliente',
@@ -32,7 +30,6 @@ function AuthProvider({ children }) {
             setUser(payload);
             localStorage.setItem('user', JSON.stringify(payload));
           } else {
-            // No active session — ensure no stale localStorage login
             setUser(null);
             localStorage.removeItem('user');
           }
@@ -40,9 +37,7 @@ function AuthProvider({ children }) {
         }
       } catch (err) {
         console.error('Auth init error:', err);
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
@@ -59,7 +54,6 @@ function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    // Cerrar sesión en Supabase y limpiar estado
     signOutSupabase()
       .catch((e) => console.warn('Error signing out:', e))
       .finally(() => {
@@ -77,9 +71,7 @@ function AuthProvider({ children }) {
 
 function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de AuthProvider');
-  }
+  if (!context) throw new Error('useAuth debe usarse dentro de AuthProvider');
   return context;
 }
 

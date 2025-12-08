@@ -1,23 +1,18 @@
 import { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
-const initialCombos = [
-  { id: 1, name: "Combo Bolón Power", price: 4, status: 'Activo', image: "https://i.postimg.cc/43NWM4VG/bolon-Con-Bistec.jpg", description: "Un delicioso bolón de verde con bistec de carne y café pasado." },
-  { id: 2, name: "Combo Encebollado Resucitador", price: 3.5, status: 'Activo', image: "https://i.postimg.cc/G2Txw4pW/encebollado.jpg", description: "Nuestro famoso encebollado de pescado con chifles y arroz." },
-  { id: 3, name: "Combo Cangrejo Criollo", price: 7.5, status: 'Agotado', image: "https://i.postimg.cc/YCJSD0JG/cangrejo.jpg", description: "2-3 cangrejos criollos en nuestra salsa especial." },
-];
-
-const ComboForm = ({ combo, onSave, onCancel }) => {
+const ComboForm = ({ combo, onSave, onCancel, isSaving }) => {
   const [formData, setFormData] = useState({
-    name: combo?.name || '',
-    description: combo?.description || '',
-    price: combo?.price || '',
-    image: combo?.image || ''
+    nombre_bundle: combo?.nombre_bundle || '',
+    descripcion: combo?.descripcion || '',
+    precio: combo?.precio || '',
+    url_imagen: combo?.url_imagen || ''
   });
 
   const handleChange = (e) => {
@@ -27,7 +22,10 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...formData, id: combo?.id || Date.now(), status: combo?.status || 'Activo' });
+    onSave({ 
+        ...formData, 
+        precio: parseFloat(formData.precio),
+    });
   };
   
   return (
@@ -36,71 +34,178 @@ const ComboForm = ({ combo, onSave, onCancel }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del Combo</label>
-            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required />
+            <label htmlFor="nombre_bundle" className="block text-sm font-medium text-gray-700">Nombre del Combo</label>
+            <input type="text" id="nombre_bundle" name="nombre_bundle" value={formData.nombre_bundle} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border" required />
           </div>
           <div>
-            <label htmlFor="price" className="block text-sm font-medium text-gray-700">Precio</label>
-            <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required step="0.01" />
+             <label htmlFor="url_imagen" className="block text-sm font-medium text-gray-700">URL de la Imagen</label>
+             <input type="text" id="url_imagen" name="url_imagen" value={formData.url_imagen} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border" placeholder="https://..." />
           </div>
         </div>
+        
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción</label>
-          <textarea id="description" name="description" value={formData.description} onChange={handleChange} rows="3" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+            <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio ($)</label>
+            <input type="number" id="precio" name="precio" value={formData.precio} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border" required step="0.01" />
         </div>
+
         <div>
-          <label htmlFor="image" className="block text-sm font-medium text-gray-700">URL de la Imagen</label>
-          <input type="text" id="image" name="image" value={formData.image} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/image.jpg" />
+          <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
+          <textarea id="descripcion" name="descripcion" value={formData.descripcion} onChange={handleChange} rows="3" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border"></textarea>
         </div>
+
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
-          <Button type="submit" className="btn-gradient">Guardar Combo</Button>
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
+          <Button type="submit" className="btn-gradient" disabled={isSaving}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {combo ? 'Actualizar' : 'Guardar'}
+          </Button>
         </div>
       </form>
     </motion.div>
   );
 };
 
-ComboForm.propTypes = {
-  combo: PropTypes.object,
-  onSave: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-};
 const ManageCombos = () => {
   const [combos, setCombos] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingCombo, setEditingCombo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const { user } = useAuth(); 
+
+  // --- Cargar Combos ---
+  const fetchCombos = async () => {
+    try {
+      // Si no hay usuario cargado, esperamos
+      if (!user || !user.id) return;
+      
+      const { data: userData, error: userError } = await supabase
+        .from('usuario')
+        .select('id_usuario')
+        .eq('id_auth_supabase', user.id)
+        .maybeSingle(); 
+
+      if (userError) throw userError;
+      
+      // Si el usuario no existe en la tabla SQL (pero sí en auth), paramos silenciosamente
+      if (!userData) {
+          console.warn("Usuario autenticado pero no encontrado en tabla 'usuario'.");
+          return;
+      }
+
+      const { data, error } = await supabase
+        .from('combo')
+        .select('*')
+        .eq('id_restaurante', userData.id_usuario)
+        .order('fecha_creacion', { ascending: false });
+
+      if (error) throw error;
+      setCombos(data || []);
+    } catch (error) {
+      console.error("Error al cargar combos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const storedCombos = JSON.parse(localStorage.getItem('local_combos'));
-    setCombos(storedCombos || initialCombos);
-  }, []);
+    fetchCombos();
+  }, [user]);
 
-  const updateLocalStorage = (updatedCombos) => {
-    localStorage.setItem('local_combos', JSON.stringify(updatedCombos));
-  };
-  
-  const handleSave = (comboData) => {
-    let updatedCombos;
-    if (editingCombo) {
-      updatedCombos = combos.map(c => c.id === comboData.id ? comboData : c);
-      toast({ title: "¡Combo actualizado!", description: "El combo ha sido modificado exitosamente." });
-    } else {
-      updatedCombos = [...combos, comboData];
-      toast({ title: "¡Combo agregado!", description: "El nuevo combo ya está disponible." });
+  // --- Guardar (Crear o Editar) ---
+  const handleSave = async (comboData) => {
+    setSaving(true);
+    
+    // --- DEBUGGING ---
+    console.log("Intentando guardar. Usuario actual:", user);
+    
+    if (!user || !user.id) {
+        toast({ 
+            title: "Sesión no válida", 
+            description: "No se detectó un usuario activo. Por favor recarga la página o inicia sesión nuevamente.",
+            variant: "destructive"
+        });
+        setSaving(false);
+        return;
     }
-    setCombos(updatedCombos);
-    updateLocalStorage(updatedCombos);
-    setIsFormVisible(false);
-    setEditingCombo(null);
+
+    try {
+      // 1. Obtener el ID numérico
+      const { data: userData, error: userError } = await supabase
+        .from('usuario')
+        .select('id_usuario')
+        .eq('id_auth_supabase', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error("Error buscando usuario SQL:", userError);
+        throw new Error("Tu usuario no está registrado correctamente en la base de datos.");
+      }
+
+      const idNumerico = userData.id_usuario;
+      console.log("ID Numérico encontrado:", idNumerico);
+
+      if (editingCombo) {
+        // Actualizar
+        const { error } = await supabase
+          .from('combo')
+          .update({
+            nombre_bundle: comboData.nombre_bundle,
+            descripcion: comboData.descripcion,
+            precio: comboData.precio,
+            url_imagen: comboData.url_imagen
+          })
+          .eq('id_combo', editingCombo.id_combo);
+
+        if (error) throw error;
+        toast({ title: "¡Actualizado!", description: "El combo se actualizó correctamente." });
+      } else {
+        // Crear Nuevo
+        const { error } = await supabase
+          .from('combo')
+          .insert([{
+            id_restaurante: idNumerico,
+            nombre_bundle: comboData.nombre_bundle,
+            descripcion: comboData.descripcion,
+            precio: comboData.precio,
+            url_imagen: comboData.url_imagen,
+            estadisponible: true, 
+            fecha_creacion: new Date().toISOString()
+          }]);
+
+        if (error) throw error;
+        toast({ title: "¡Creado!", description: "Combo publicado exitosamente." });
+      }
+
+      await fetchCombos();
+      setIsFormVisible(false);
+      setEditingCombo(null);
+    } catch (error) {
+      console.error("Error completo al guardar:", error);
+      toast({ title: "Error", description: error.message || "Error desconocido", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id) => {
-    if (globalThis.confirm("¿Estás seguro de que quieres eliminar este combo?")) {
-      const updatedCombos = combos.filter(c => c.id !== id);
-      setCombos(updatedCombos);
-      updateLocalStorage(updatedCombos);
-      toast({ title: "¡Combo eliminado!", variant: "destructive" });
+  // --- Eliminar ---
+  const handleDelete = async (id) => {
+    if (!window.confirm("¿Estás seguro de eliminar este combo?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('combo')
+        .delete()
+        .eq('id_combo', id);
+
+      if (error) throw error;
+      
+      toast({ title: "Eliminado", variant: "destructive" });
+      setCombos(combos.filter(c => c.id_combo !== id));
+    } catch (error) {
+      console.error("Error eliminando:", error);
+      toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
     }
   };
 
@@ -113,6 +218,8 @@ const ManageCombos = () => {
     setEditingCombo(null);
     setIsFormVisible(true);
   };
+
+  if (loading) return <div className="p-8 text-center">Cargando tus combos...</div>;
 
   return (
     <>
@@ -127,36 +234,47 @@ const ManageCombos = () => {
           )}
         </div>
 
-        {isFormVisible && <ComboForm combo={editingCombo} onSave={handleSave} onCancel={() => { setIsFormVisible(false); setEditingCombo(null); }} />}
+        {isFormVisible && (
+            <ComboForm 
+                combo={editingCombo} 
+                onSave={handleSave} 
+                onCancel={() => { setIsFormVisible(false); setEditingCombo(null); }} 
+                isSaving={saving}
+            />
+        )}
         
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold mb-4">Mis Combos Publicados</h2>
           <div className="space-y-4">
-            {combos.map(combo => (
-              <motion.div key={combo.id} layout className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
-                {combo.image ? (
-                    <img src={combo.image} alt={combo.name} className="w-20 h-20 rounded-md object-cover" />
-                ) : (
-                    <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center text-gray-400">
-                        <ImageIcon />
+            {combos.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No has publicado combos todavía.</p>
+            ) : (
+                combos.map(combo => (
+                <motion.div key={combo.id_combo} layout className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
+                    {combo.url_imagen ? (
+                        <img src={combo.url_imagen} alt={combo.nombre_bundle} className="w-20 h-20 rounded-md object-cover" />
+                    ) : (
+                        <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center text-gray-400">
+                            <ImageIcon />
+                        </div>
+                    )}
+                    <div className="flex-1">
+                    <h3 className="font-bold text-lg">{combo.nombre_bundle}</h3>
+                    <p className="text-sm text-gray-500 line-clamp-1">{combo.descripcion}</p>
+                    <p className="font-semibold text-primary">${Number(combo.precio).toFixed(2)}</p>
                     </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg">{combo.name}</h3>
-                  <p className="text-sm text-gray-500">{combo.description}</p>
-                  <p className="font-semibold text-primary">${Number(combo.price).toFixed(2)}</p>
-                </div>
-                <div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${combo.status === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {combo.status}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon" onClick={() => handleEdit(combo)}><Edit className="h-4 w-4" /></Button>
-                  <Button variant="destructive" size="icon" onClick={() => handleDelete(combo.id)}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              </motion.div>
-            ))}
+                    <div>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${combo.estadisponible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {combo.estadisponible ? 'Activo' : 'Agotado'}
+                    </span>
+                    </div>
+                    <div className="flex gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handleEdit(combo)}><Edit className="h-4 w-4" /></Button>
+                    <Button variant="destructive" size="icon" onClick={() => handleDelete(combo.id_combo)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                </motion.div>
+                ))
+            )}
           </div>
         </div>
       </div>

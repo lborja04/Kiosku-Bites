@@ -51,6 +51,7 @@ export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario
       contrasena: password || null,
       tipo_usuario: tipo_usuario,
       estado: 'Activo',
+      id_auth_supabase: data.user.id
     };
 
     const { data: insertedUser, error: insertErr } = await supabase
