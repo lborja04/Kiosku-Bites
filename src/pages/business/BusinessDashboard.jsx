@@ -16,7 +16,7 @@ const BusinessDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [localDetailsComplete, setLocalDetailsComplete] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
-  const [actualLocalId, setActualLocalId] = useState(null); // Estado para guardar el id_local (int8)
+  const [actualLocalId, setActualLocalId] = useState(null);
 
   useEffect(() => {
     const checkLocalDetails = async () => {
@@ -30,8 +30,6 @@ const BusinessDashboard = () => {
       try {
         setLoadingDetails(true);
         console.log('User Auth ID from AuthContext:', user.id);
-
-        // Paso 1: Obtener el id_usuario (int8) de la tabla 'usuario' usando el id_auth_supabase (UUID)
         const { data: userData, error: userError } = await supabase
           .from('usuario')
           .select('id_usuario')
@@ -42,19 +40,16 @@ const BusinessDashboard = () => {
           console.error('Error fetching id_usuario from "usuario" table or user not found:', userError);
           setLoadingDetails(false);
           setLocalDetailsComplete(false);
-          return; // No se encontró el id_usuario correspondiente, no se puede continuar
+          return;
         }
         
         const localNumericId = userData.id_usuario;
-        setActualLocalId(localNumericId); // Guarda el ID numérico
+        setActualLocalId(localNumericId);
         console.log('Found actual local ID (int8):', localNumericId);
-
-        // Paso 2: Usar este id_usuario (int8) para consultar la tabla 'local'
         const { data: localData, error: localError } = await supabase
           .from('local')
-          .select('nombre_local, descripcion, telefono, direccion') // Eliminado 'contenido'
-          .eq('id_local', localNumericId); // Usar el ID numérico aquí
-
+          .select('nombre_local, descripcion, telefono, direccion') 
+          .eq('id_local', localNumericId);
         if (localError) {
           console.error('Supabase error fetching local details:', localError);
           setLocalDetailsComplete(false);
@@ -65,7 +60,7 @@ const BusinessDashboard = () => {
           localData[0].nombre_local && 
           localData[0].descripcion && 
           localData[0].telefono && 
-          localData[0].direccion; // Eliminado 'localData[0].contenido'
+          localData[0].direccion;
         
         console.log('Local details complete:', isComplete, 'Data:', localData);
         setLocalDetailsComplete(isComplete);
@@ -79,7 +74,7 @@ const BusinessDashboard = () => {
     };
 
     checkLocalDetails();
-  }, [user?.id]); // Dependencia del UUID de Supabase Auth
+  }, [user?.id]);
 
   const navLinks = [
     { to: '', text: 'Estadísticas', icon: <BarChart2 className="w-5 h-5" /> },
@@ -104,13 +99,10 @@ const BusinessDashboard = () => {
     );
   }
 
-  // Si los datos del local no están completos y tenemos el ID numérico, muestra el formulario
   if (!localDetailsComplete && actualLocalId !== null) {
     return <LocalDetailsForm userId={actualLocalId} onComplete={handleLocalDetailsComplete} />;
   }
 
-  // si localDetailsComplete es false y actualLocalId es null, no debería renderizar nada
-  // o redirigir a una página de error/configuración inicial si no se encuentra el usuario.
   if (!user?.id || actualLocalId === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
