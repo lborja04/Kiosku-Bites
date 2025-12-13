@@ -1,110 +1,317 @@
-
-import { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { Star, ThumbsUp, Flag, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, ThumbsUp, Flag, Filter, Loader2, MessageSquare, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-
-const mockReviews = [
-  { id: 1, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-10', rating: 5, comment: "¡Delicioso! El mejor bolón que he probado en mucho tiempo.", status: 'visible' },
-  { id: 2, user: 'Usuario Anónimo', combo: 'Combo Encebollado Resucitador', date: '2025-08-09', rating: 4, comment: "Muy bueno y a un precio increíble. Lo recomiendo.", status: 'visible' },
-  { id: 3, user: 'Usuario Anónimo', combo: 'Combo Bolón Power', date: '2025-08-09', rating: 2, comment: "El café estaba un poco frío.", status: 'visible' },
-  { id: 4, user: 'Usuario Anónimo', combo: 'Combo Guatita Especial', date: '2025-08-08', rating: 5, comment: "¡Espectacular! Como hecho en casa. Volveré a pedir sin duda.", status: 'destacado' },
-  { id: 5, user: 'Usuario Anónimo', combo: 'Combo Cangrejo Criollo', date: '2025-08-07', rating: 3, comment: "Estaba bueno, pero me tocaron pocos cangrejos.", status: 'visible' },
-];
+import { supabase } from '@/services/supabaseAuthClient';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ManageReviews = () => {
-  const [reviews, setReviews] = useState(mockReviews);
-  const [filter, setFilter] = useState('date');
+  const { user } = useAuth();
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Filtros
+  const [filter, setFilter] = useState('date_desc');
+  const [comboFilter, setComboFilter] = useState('all'); // Nuevo filtro por nombre de combo
 
-  const handleAction = (id, action) => {
-    setReviews(reviews.map(review => {
-      if (review.id === id) {
-        if (action === 'destacar') {
-          return { ...review, status: review.status === 'destacado' ? 'visible' : 'destacado' };
-        }
-        if (action === 'reportar') {
-          return { ...review, status: review.status === 'reportado' ? 'visible' : 'reportado' };
-        }
+  // --- 1. CARGAR RESEÑAS DESDE SUPABASE ---
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!user) return;
+
+      try {
+        setLoading(true);
+
+        const { data: userData } = await supabase
+            .from('usuario')
+            .select('id_usuario')
+            .eq('id_auth_supabase', user.id)
+            .single();
+
+        if (!userData) return;
+        const localId = userData.id_usuario;
+
+        const { data, error } = await supabase
+            .from('resena')
+            .select(`
+                id_resena,
+                calificacion,
+                comentario,
+                fecha_resena,
+                destacado,
+                reportado, 
+                combo:id_combo!inner ( 
+                    nombre_bundle,
+                    id_local 
+                ),  
+                cliente:id_cliente (
+                    usuario ( nombre )
+                )
+            `)
+            .eq('combo.id_local', localId) 
+            .order('fecha_resena', { ascending: false });
+
+        if (error) throw error;
+
+        const formatted = data.map(r => ({
+            id: r.id_resena,
+            user: r.cliente?.usuario?.nombre || "Cliente Anónimo",
+            combo: r.combo?.nombre_bundle || "Combo Desconocido", 
+            rating: r.calificacion,
+            comment: r.comentario,
+            date: r.fecha_resena,
+            isFeatured: r.destacado || false,
+            isReported: r.reportado || false
+        }));
+
+        setReviews(formatted);
+
+      } catch (err) {
+        console.error("Error cargando reseñas:", err.message);
+        toast({ title: "Error", description: "No se pudieron cargar las reseñas.", variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
-      return review;
-    }));
-    toast({ title: `Opinión ${action === 'destacar' ? 'destacada/restaurada' : 'reportada/restaurada'}`, description: 'La acción se completó con éxito.' });
+    };
+
+    fetchReviews();
+  }, [user]);
+
+  // --- 2. ACCIONES ---
+  const handleAction = async (id, action) => {
+    
+    if (action === 'destacar') {
+        const currentReview = reviews.find(r => r.id === id);
+        const newState = !currentReview.isFeatured;
+
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, isFeatured: newState } : r));
+
+        try {
+            const { error } = await supabase
+                .from('resena')
+                .update({ destacado: newState })
+                .eq('id_resena', id);
+
+            if (error) throw error;
+
+            toast({ 
+                title: newState ? "Comentario Destacado" : "Comentario Normal", 
+                description: newState ? "Esta reseña aparecerá primero." : "Se ha quitado el destacado.",
+                className: "bg-green-50 border-green-200"
+            });
+        } catch (err) {
+            console.error("Error destacando:", err);
+            setReviews(prev => prev.map(r => r.id === id ? { ...r, isFeatured: !newState } : r));
+            toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
+        }
+    }
+
+    if (action === 'reportar') {
+        const currentReview = reviews.find(r => r.id === id);
+        
+        if (currentReview.isReported) {
+             toast({ title: "Ya reportado", description: "Esta reseña ya está en revisión.", variant: "secondary" });
+             return;
+        }
+
+        const isConfirmed = window.confirm("¿Estás seguro de reportar este comentario? Esta acción alertará a los moderadores.");
+        
+        if (!isConfirmed) return;
+
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, isReported: true } : r));
+
+        try {
+            const { error } = await supabase
+                .from('resena')
+                .update({ reportado: true })
+                .eq('id_resena', id);
+
+            if (error) throw error;
+
+            toast({ 
+                title: "Reporte Enviado", 
+                description: "Gracias por ayudarnos a mantener la comunidad segura.", 
+                variant: "destructive"
+            });
+
+        } catch (err) {
+            console.error("Error reportando:", err);
+            setReviews(prev => prev.map(r => r.id === id ? { ...r, isReported: false } : r));
+            toast({ title: "Error", description: "No se pudo enviar el reporte.", variant: "destructive" });
+        }
+    }
   };
 
-  const sortedReviews = useMemo(() => {
-    return [...reviews].sort((a, b) => {
-      if (filter === 'rating_desc') return b.rating - a.rating;
-      if (filter === 'rating_asc') return a.rating - b.rating;
-      return new Date(b.date) - new Date(a.date);
-    });
-  }, [reviews, filter]);
+  // --- 3. OBTENER LISTA ÚNICA DE COMBOS PARA EL FILTRO ---
+  const uniqueCombos = useMemo(() => {
+      // Extraemos los nombres de combos únicos de las reseñas cargadas
+      const names = reviews.map(r => r.combo);
+      return [...new Set(names)]; // Set elimina duplicados
+  }, [reviews]);
+
+  // --- 4. ORDENAMIENTO Y FILTRADO ---
+  const processedReviews = useMemo(() => {
+    let result = [...reviews];
+
+    // 1. Filtrar por Combo
+    if (comboFilter !== 'all') {
+        result = result.filter(r => r.combo === comboFilter);
+    }
+    
+    // 2. Ordenar por Criterio
+    const compareFn = (a, b) => {
+        switch(filter) {
+            case 'rating_desc': return b.rating - a.rating;
+            case 'rating_asc': return a.rating - b.rating;
+            case 'date_desc': 
+            default: return new Date(b.date) - new Date(a.date);
+        }
+    };
+    
+    // 3. Destacados primero
+    const featured = result.filter(r => r.isFeatured).sort(compareFn);
+    const regular = result.filter(r => !r.isFeatured).sort(compareFn);
+
+    return [...featured, ...regular];
+  }, [reviews, filter, comboFilter]);
+
+  if (loading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin w-10 h-10 text-primary"/></div>;
 
   return (
     <>
       <Helmet><title>Gestionar Opiniones - KIOSKU BITES</title></Helmet>
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Gestionar Opiniones</h1>
-          <div className="flex items-center gap-2">
-            <Filter className="text-gray-500" />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="border-gray-300 rounded-md shadow-sm"
-            >
-              <option value="date">Más recientes</option>
-              <option value="rating_desc">Mejor calificación</option>
-              <option value="rating_asc">Peor calificación</option>
-            </select>
+      
+      <div className="space-y-8 pb-12">
+        <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Opiniones de Clientes</h1>
+            <p className="text-gray-500 text-sm">Gestiona el feedback de tus clientes.</p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Filtro por Combo */}
+            <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                <Package className="text-gray-400 w-4 h-4" />
+                <select
+                    value={comboFilter}
+                    onChange={(e) => setComboFilter(e.target.value)}
+                    className="border-none bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer outline-none pr-2 min-w-[150px]"
+                >
+                    <option value="all">Todos los Combos</option>
+                    {uniqueCombos.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Filtro por Orden */}
+            <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                <Filter className="text-gray-400 w-4 h-4" />
+                <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="border-none bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer outline-none pr-2"
+                >
+                    <option value="date_desc">Más recientes</option>
+                    <option value="rating_desc">Mejor calificación</option>
+                    <option value="rating_asc">Peor calificación</option>
+                </select>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          {sortedReviews.map((review, index) => (
-            <motion.div
-              key={review.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`p-6 rounded-lg shadow-md ${
-                review.status === 'destacado' ? 'bg-yellow-50 border-l-4 border-yellow-400' : 
-                review.status === 'reportado' ? 'bg-red-50 border-l-4 border-red-400' : 'bg-white'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{review.user} sobre <span className="text-primary">{review.combo}</span></p>
-                  <p className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                  <div className="flex items-center mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-5 h-5 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={review.status === 'destacado' ? 'default' : 'outline'}
-                    size="sm"
-                    className={review.status === 'destacado' ? 'btn-gradient' : ''}
-                    onClick={() => handleAction(review.id, 'destacar')}
-                  >
-                    <ThumbsUp className="mr-2 h-4 w-4" /> {review.status === 'destacado' ? 'Destacado' : 'Destacar'}
-                  </Button>
-                  <Button
-                    variant={review.status === 'reportado' ? 'destructive' : 'outline'}
-                    size="sm"
-                    onClick={() => handleAction(review.id, 'reportar')}
-                  >
-                    <Flag className="mr-2 h-4 w-4" /> {review.status === 'reportado' ? 'Reportado' : 'Reportar'}
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-4 text-gray-700 italic">"{review.comment}"</p>
-            </motion.div>
-          ))}
-        </div>
+        {reviews.length === 0 ? (
+            <div className="text-center bg-white p-16 rounded-2xl shadow-sm border border-dashed border-gray-300">
+                <MessageSquare className="w-16 h-16 mx-auto text-gray-200 mb-4" />
+                <h3 className="text-lg font-bold text-gray-800">Aún no tienes opiniones</h3>
+                <p className="text-gray-500 max-w-md mx-auto mt-2">Cuando los clientes compren y califiquen tus combos, las reseñas aparecerán aquí.</p>
+            </div>
+        ) : (
+            <div className="space-y-4">
+            <AnimatePresence>
+                {processedReviews.map((review, index) => (
+                    <motion.div
+                    key={review.id}
+                    layout 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className={`p-6 rounded-xl shadow-sm border transition-colors ${
+                        review.isFeatured 
+                        ? 'bg-yellow-50 border-yellow-200 ring-1 ring-yellow-200' 
+                        : 'bg-white border-gray-100'
+                    }`}
+                    >
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="flex-1">
+                            {/* Encabezado */}
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className="font-bold text-gray-900">{review.user}</span>
+                                <span className="text-gray-300">•</span>
+                                {/* CORRECCIÓN DE FECHA: Forzamos la zona horaria UTC para que no reste horas */}
+                                <span className="text-xs text-gray-500">
+                                    {new Date(review.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
+                                </span>
+                                {review.isReported && (
+                                    <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center">
+                                        <AlertTriangle className="w-3 h-3 mr-1" /> REVISIÓN PENDIENTE
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Estrellas y Combo */}
+                            <div className="flex flex-wrap items-center gap-3 mb-3">
+                                <div className="flex text-yellow-400">
+                                    {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-current' : 'text-gray-200'}`} />
+                                    ))}
+                                </div>
+                                <div className="flex items-center text-xs font-medium text-primary bg-primary/5 px-2.5 py-1 rounded-full">
+                                    <Package className="w-3 h-3 mr-1"/>
+                                    {review.combo}
+                                </div>
+                            </div>
+                            
+                            {/* Comentario */}
+                            <p className="text-gray-700 italic text-sm leading-relaxed bg-white/50 p-3 rounded-lg border border-gray-50">
+                                "{review.comment}"
+                            </p>
+                        </div>
+
+                        {/* Botones de Acción */}
+                        <div className="flex items-center gap-2 self-end sm:self-start mt-2 sm:mt-0">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAction(review.id, 'destacar')}
+                                className={`${review.isFeatured ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                                title={review.isFeatured ? "Quitar destacado" : "Destacar opinión"}
+                            >
+                                <ThumbsUp className={`w-4 h-4 ${review.isFeatured ? 'fill-current' : ''}`} />
+                            </Button>
+                            
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAction(review.id, 'reportar')}
+                                className={`${
+                                    review.isReported 
+                                    ? 'text-red-600 bg-red-100 hover:bg-red-200' 
+                                    : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                                }`}
+                                title={review.isReported ? 'Contenido reportado' : 'Reportar contenido inapropiado'}
+                            >
+                                <Flag className={`w-4 h-4 ${review.isReported ? 'fill-current' : ''}`} />
+                            </Button>
+                        </div>
+                    </div>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
+            </div>
+        )}
       </div>
     </>
   );

@@ -1,68 +1,97 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, LogIn, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { signInWithSupabase } from '../services/supabaseAuthClient';
+
+// --- COMPONENTE POPUP (MODAL) ---
+const StatusModal = ({ isOpen, onClose, title, message }) => {
+  if (!isOpen) return null;
+  return (
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      >
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+        >
+          <div className="p-6 flex flex-col items-center text-center bg-red-50">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2 text-red-800">{title}</h3>
+            <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+            <Button onClick={onClose} className="w-full py-6 text-lg bg-red-600 hover:bg-red-700">Intentar de nuevo</Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
-  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth(); // Usamos el login del contexto para actualizar estado inmediato
   
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
+  const closeModal = () => setModalState({ ...modalState, isOpen: false });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     if (!email || !password) {
-      toast({
-        title: "Error de inicio de sesión",
-        description: "Por favor, introduce tu correo y contraseña.",
-        variant: "destructive",
-      });
+      setModalState({ isOpen: true, title: "Campos vacíos", message: "Por favor, introduce tu correo y contraseña." });
       setLoading(false);
       return;
     }
 
     try {
+      // 1. Llamada a Supabase
       const { auth } = await signInWithSupabase({ email, password });
 
+      // 2. Extraer datos para redirección
       const tipo = auth?.user?.user_metadata?.tipo_usuario || 'cliente';
-
+      
+      // 3. Forzar actualización del contexto (aunque el listener lo haría, esto es más rápido para la UX)
       const payload = {
-        id: auth.user.id, // Este es el UUID de Supabase Auth
+        id: auth.user.id,
         email: auth?.user?.email || email,
-        nombre: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
-        tipo_usuario: tipo,
-        name: auth?.user?.user_metadata?.full_name || auth?.user?.email || email,
+        nombre: auth?.user?.user_metadata?.nombre || auth?.user?.user_metadata?.full_name || email,
         type: tipo,
+        user_metadata: auth?.user?.user_metadata
       };
-
+      
       login(payload);
 
-      toast({ title: '¡Bienvenido!', description: `Sesión iniciada como ${tipo}.` });
-
-      if (tipo === 'cliente') {
-        navigate('/dashboard/cliente', { replace: true });
-      } else if (tipo === 'local') {
-        
-        navigate('/dashboard/local', { replace: true });
-      } else {
-        navigate('/', { replace: true });
-      }
+      // 4. Redirección
+      if (tipo === 'cliente') navigate('/dashboard/cliente', { replace: true });
+      else if (tipo === 'local') navigate('/dashboard/local', { replace: true });
+      else navigate('/', { replace: true });
 
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Error de inicio de sesión",
-        description: error.message || "Credenciales inválidas o usuario no encontrado.",
-        variant: "destructive",
-      });
+      let errorTitle = "Error de inicio de sesión";
+      let friendlyMessage = error.message;
+      const msg = error.message?.toLowerCase() || "";
+
+      if (msg.includes("invalid login")) {
+        errorTitle = "Credenciales incorrectas";
+        friendlyMessage = "El correo o la contraseña no coinciden.";
+      } else if (msg.includes("email not confirmed")) {
+        errorTitle = "Cuenta no verificada";
+        friendlyMessage = "Por favor verifica tu correo electrónico antes de entrar.";
+      }
+
+      setModalState({ isOpen: true, title: errorTitle, message: friendlyMessage });
     } finally {
       setLoading(false);
     }
@@ -70,78 +99,69 @@ const LoginPage = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Iniciar Sesión - KIOSKU BITES</title>
-        <meta name="description" content="Inicia sesión en tu cuenta de KIOSKU BITES para acceder a tus combos y reservas." />
-      </Helmet>
+      <Helmet><title>Iniciar Sesión - KIOSKU BITES</title></Helmet>
+      <StatusModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} message={modalState.message} />
 
-      <div className="min-h-screen flex bg-gray-50">
+      <div className="min-h-screen flex bg-gray-50 font-sans">
+        {/* Imagen Lateral */}
         <div className="hidden lg:block relative w-0 flex-1 lg:w-1/2 xl:w-2/3">
-          <img  className="absolute inset-0 h-full w-full object-cover" alt="Deliciosa comida" src="https://images.unsplash.com/photo-1656167718265-a05fe70cdf52" />
-          <div className="absolute inset-0 bg-primary/70 flex flex-col items-center justify-center text-white p-12 text-center">
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
-              <Link to="/" className="flex items-center justify-center space-x-4 mb-8">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center">
-                  <span className="text-primary font-bold text-4xl">K</span>
+          <img 
+            className="absolute inset-0 h-full w-full object-cover" 
+            alt="Deliciosa comida" 
+            src="https://images.unsplash.com/photo-1656167718265-a05fe70cdf52?q=80&w=2070&auto=format&fit=crop" 
+          />
+          <div className="absolute inset-0 bg-primary/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-12 text-center">
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+              <Link to="/" className="flex items-center justify-center space-x-4 mb-8 hover:scale-105 transition-transform">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-primary font-black text-4xl">K</span>
                 </div>
-                <span className="text-4xl font-bold">KIOSKU BITES</span>
+                <span className="text-4xl font-bold tracking-tight">KIOSKU BITES</span>
               </Link>
-              <h1 className="text-4xl font-bold leading-tight">Salva comida, ahorra dinero.</h1>
-              <p className="mt-4 text-xl opacity-90">Únete a miles de personas que ya disfrutan de comida deliciosa a precios increíbles.</p>
+              <h1 className="text-4xl font-extrabold leading-tight">Salva comida,<br/>ahorra dinero.</h1>
             </motion.div>
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+        {/* Formulario */}
+        <div className="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24 bg-white">
           <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="mx-auto w-full max-w-sm lg:w-96">
-            <div>
+            <div className="mb-8">
               <h2 className="text-3xl font-bold tracking-tight text-gray-900">¡Hola de nuevo!</h2>
-              <p className="mt-2 text-lg text-gray-600">Inicia sesión para seguir salvando comida.</p>
+              <p className="mt-2 text-lg text-gray-600">Ingresa tus datos para continuar.</p>
             </div>
             
-            <div className="mt-8">
-              <div className="mt-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">Correo electrónico</label>
-                    <div className="mt-1 relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input id="email" name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="tu@email.com" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <div className="mt-1 relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Tu contraseña" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                      <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">Recuérdame</label>
-                    </div>
-
-                    <div className="text-sm">
-                      <Link to="/recuperar-contrasena" className="font-medium text-primary hover:text-primary/80">¿Olvidaste tu contraseña?</Link>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Button type="submit" disabled={loading} className="flex w-full justify-center btn-gradient py-3 text-lg">
-                      <LogIn className="w-5 h-5 mr-2" />
-                      {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-                    </Button>
-                  </div>
-                </form>
-
-                <p className="mt-8 text-center text-md text-gray-600">
-                  ¿No tienes una cuenta? <Link to="/register" className="font-medium text-primary hover:text-[#1f3a5e]">Regístrate aquí</Link>
-                </p>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="tu@email.com" />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="********" />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Link to="/recuperar-contrasena" className="text-sm font-bold text-primary hover:underline hover:text-[#1f3a5e]">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
+
+              <Button type="submit" disabled={loading} className="flex w-full justify-center btn-gradient py-6 text-lg shadow-md hover:shadow-xl transition-all disabled:opacity-70">
+                {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Iniciando...</> : <><LogIn className="w-5 h-5 mr-2" /> Iniciar Sesión</>}
+              </Button>
+            </form>
+
+            <p className="mt-8 text-center text-md text-gray-600">
+              ¿No tienes una cuenta? <Link to="/register" className="font-bold text-primary hover:text-[#1f3a5e] hover:underline">Regístrate aquí</Link>
+            </p>
           </motion.div>
         </div>
       </div>

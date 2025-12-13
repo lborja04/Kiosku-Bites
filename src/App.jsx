@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import BusinessDashboard from '@/pages/business/BusinessDashboard';
 import CustomerDashboard from '@/pages/customer/CustomerDashboard';
 import ShoppingCart from '@/pages/ShoppingCart';
+import RestaurantProfile from '@/pages/RestaurantProfile';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -29,6 +30,25 @@ const PrivateRoute = ({ children, role }) => {
   return children;
 };
 
+// COMPONENTE AUXILIAR PARA CONTROLAR EL FOOTER
+const LayoutWithFooterControl = ({ children }) => {
+  const location = useLocation();
+  // Lista de rutas donde NO queremos footer
+  const hideFooterRoutes = ['/dashboard/local', '/dashboard/cliente'];
+  
+  // Verificamos si la ruta actual empieza con alguna de las rutas prohibidas
+  const showFooter = !hideFooterRoutes.some(path => location.pathname.startsWith(path));
+
+  return (
+    <>
+      <main className="flex-grow">
+        {children}
+      </main>
+      {showFooter && <Footer />}
+    </>
+  );
+};
+
 function AppContent() {
   return (
     <Router>
@@ -37,11 +57,14 @@ function AppContent() {
           <title>KIOSKU BITES - Combos de comida a precio reducido</title>
           <meta name="description" content="Descubre combos de comida deliciosos a precios reducidos y ayuda a reducir el desperdicio alimentario con KIOSKU BITES." />
         </Helmet>
+        
+        {/* Navbar ya tiene su propia lógica interna para ocultarse, así que la dejamos aquí */}
         <Navbar />
-        <main className="flex-grow">
+        
+        {/* Envolvemos las rutas y el footer con nuestra lógica de control */}
+        <LayoutWithFooterControl>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            {/* Buscar Combos vuelve a ser público */}
             <Route path="/buscar-combos" element={<SearchCombos />} />
             <Route path="/nuestra-historia" element={<OurStory />} />
             <Route path="/para-empresas" element={<ForBusinessPage />} />
@@ -49,7 +72,8 @@ function AppContent() {
             <Route path="/combo/:id" element={<ComboDetail />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            {/* carrito sigue protegido */}
+            <Route path="/local/:id" element={<RestaurantProfile />} />
+            
             <Route path="/carrito" element={
               <PrivateRoute>
                 <ShoppingCart />
@@ -68,8 +92,8 @@ function AppContent() {
             }/>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-        <Footer />
+        </LayoutWithFooterControl>
+        
         <Toaster />
       </div>
     </Router>
