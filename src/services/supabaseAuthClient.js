@@ -49,11 +49,15 @@ export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario
       throw error;
     }
 
+    if (!data.user) {
+        throw new Error('No se pudo crear el usuario en Auth.');
+    }
+
     // --- 3) Insertar fila en la tabla `usuario` respetando constraints ---
     const insertPayload = {
       nombre: nombre || null,
       email,
-      contrasena: password || null,
+      contrasena: password || null, // Nota: idealmente esto no debería guardarse en texto plano si ya usas Auth
       tipo_usuario: tipo_usuario,
       estado: 'Activo',
       id_auth_supabase: data.user.id
@@ -67,29 +71,30 @@ export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario
 
     if (insertErr) {
       console.error('Error insertando en tabla usuario:', insertErr);
-      // Nota: no revertimos la creación en Auth automáticamente
       throw insertErr;
     }
 
     // --- 4) Insertar en tabla cliente o local según tipo_usuario ---
     const newId = insertedUser.id_usuario;
+    
     if (tipo_usuario === 'cliente') {
+      // CORRECCIÓN: Eliminamos 'ubicacion' de aquí para evitar error de columna
       const clientePayload = {
-        id_cliente: newId,
-        ubicacion: extra?.ubicacion || null,
+        id_cliente: newId
       };
       const { error: clienteErr } = await supabase.from('cliente').insert([clientePayload]);
       if (clienteErr) {
         console.error('Error insertando en cliente:', clienteErr);
         throw clienteErr;
       }
+
     } else if (tipo_usuario === 'local') {
+      // CORRECCIÓN: Eliminamos 'direccion' de aquí. Solo guardamos lo básico.
       const localPayload = {
         id_local: newId,
         nombre_local: extra?.nombre_local || nombre || null,
-        descripcion: extra?.descripcion || null,
+        descripcion: extra?.descripcion || null, // Opcional
         telefono: extra?.telefono || null,
-        direccion: extra?.direccion || null,
       };
       const { error: localErr } = await supabase.from('local').insert([localPayload]);
       if (localErr) {
@@ -107,9 +112,6 @@ export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario
 
 /**
  * Inicia sesión con email y password usando Supabase Auth.
- * También obtiene la fila de la tabla `usuario` y la devuelve.
- * @param {string} email
- * @param {string} password
  */
 export const signInWithSupabase = async ({ email, password }) => {
   try {
@@ -118,8 +120,6 @@ export const signInWithSupabase = async ({ email, password }) => {
       console.error('Supabase auth signIn error:', error);
       throw error;
     }
-
-    // No consultamos la tabla `usuario`. Devolvemos únicamente la respuesta de Auth.
     return { auth: data };
   } catch (err) {
     throw err;
