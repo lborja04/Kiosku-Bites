@@ -270,7 +270,7 @@ const ComboDetail = () => {
     toast({ title: "¡Añadido al carrito!", description: "Listo para finalizar la compra.", className: "bg-green-50 border-green-200" });
   };
 
-  const handleOpenReviewForm = () => {
+  const handleOpenReviewForm = async () => {
       if(!user) {
           toast({ title: "Inicia sesión", description: "Debes estar logueado para opinar.", variant: "default" });
           return;
@@ -279,7 +279,38 @@ const ComboDetail = () => {
           toast({ title: "Solo clientes", description: "Las cuentas de local no pueden dejar reseñas.", variant: "secondary" });
           return;
       }
-      setShowReviewForm(true);
+
+      // --- NUEVA VALIDACIÓN: VERIFICAR COMPRA ---
+      // Verificamos si existe al menos una compra de este combo hecha por este cliente
+      // y que NO esté cancelada.
+      try {
+        const { data, error } = await supabase
+            .from('compra')
+            .select('id_compra')
+            .eq('id_combo', combo.id)
+            .eq('id_cliente', clientId)
+            .neq('estado', 'Cancelado') // Importante: que no sea una compra cancelada
+            .limit(1)
+            .maybeSingle(); // Usamos maybeSingle para que no lance error si no hay datos, solo devuelve null
+
+        if (error) throw error;
+
+        if (!data) {
+            toast({ 
+                title: "Compra requerida", 
+                description: "Para garantizar la veracidad, solo puedes opinar si has comprado este combo.", 
+                variant: "destructive" 
+            });
+            return;
+        }
+
+        // Si pasó todas las validaciones, mostramos el formulario
+        setShowReviewForm(true);
+
+      } catch (err) {
+          console.error("Error verificando compra:", err);
+          toast({ title: "Error", description: "No pudimos verificar tu historial de compras.", variant: "destructive" });
+      }
   };
 
   const handleSubmitReview = async (e) => {
