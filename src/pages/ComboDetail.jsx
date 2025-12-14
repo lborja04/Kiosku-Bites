@@ -385,9 +385,11 @@ const ComboDetail = () => {
 
                         <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
                             <div className="mb-2">
-                                <span className="text-xs font-bold text-primary uppercase tracking-wide bg-primary/10 px-2 py-1 rounded-md">
-                                    {combo.restaurant}
-                                </span>
+                              <Link to={`/local/${combo.localId}`} className="hover:opacity-80 transition-opacity">
+                                  <span className="text-xs font-bold text-primary uppercase tracking-wide bg-primary/10 px-2 py-1 rounded-md hover:bg-primary/20 hover:underline cursor-pointer">
+                                      {combo.restaurant}
+                                  </span>
+                              </Link>
                             </div>
                             <h1 className="text-3xl font-bold text-gray-900 mb-2 leading-tight">{combo.name}</h1>
                             
