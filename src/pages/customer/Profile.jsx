@@ -20,12 +20,75 @@ const Profile = () => {
   const [newName, setNewName] = useState('');
   const [passwords, setPasswords] = useState({ new: '', confirm: '' });
 
+  // --- NUEVO: Estado para Estadísticas ---
+  const [stats, setStats] = useState({
+    combosSalvados: 0,
+    dineroAhorrado: 0,
+    localesFavoritos: 0
+  });
+
   // Sincronizar nombre inicial
   useEffect(() => {
     if (user) {
       setNewName(user.nombre || user.name || '');
+      fetchStats(); // Cargar estadísticas al montar
     }
   }, [user]);
+
+  // --- NUEVO: Función para buscar estadísticas ---
+  const fetchStats = async () => {
+    if (!user) return;
+    try {
+        // Obtenemos el ID numérico (de base de datos) del usuario
+        let userId = user.db_id;
+        
+        // Fallback por si el contexto no tiene el db_id, lo buscamos
+        if (!userId) {
+             const { data: dbUser } = await supabase
+                .from('usuario')
+                .select('id_usuario')
+                .eq('id_auth_supabase', user.id)
+                .single();
+             userId = dbUser?.id_usuario;
+        }
+
+        if (!userId) return;
+
+        // 1. Obtener Compras (Combos salvados y Dinero ahorrado)
+        const { data: compras } = await supabase
+            .from('compra')
+            .select(`
+                precio_unitario_pagado,
+                estado,
+                combo ( precio )
+            `)
+            .eq('id_cliente', userId)
+            .neq('estado', 'Cancelado');
+
+        // 2. Obtener Favoritos
+        const { count: favCount } = await supabase
+            .from('favoritos')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_cliente', userId);
+
+        // Cálculos
+        const totalCombos = compras?.length || 0;
+        const totalAhorrado = compras?.reduce((acc, item) => {
+            const precioOriginal = Number(item.combo?.precio) || 0;
+            const precioPagado = Number(item.precio_unitario_pagado) || 0;
+            return acc + Math.max(0, precioOriginal - precioPagado);
+        }, 0) || 0;
+
+        setStats({
+            combosSalvados: totalCombos,
+            dineroAhorrado: totalAhorrado,
+            localesFavoritos: favCount || 0
+        });
+
+    } catch (error) {
+        console.error("Error al cargar estadísticas", error);
+    }
+  };
 
   // --- HELPERS VISUALES ---
   const displayName = user?.nombre || user?.name || user?.email || 'Usuario';
@@ -185,21 +248,23 @@ const Profile = () => {
               <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3">
                   <Leaf className="w-6 h-6" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">12</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.combosSalvados}</p>
               <p className="text-sm text-gray-500 font-medium">Combos Salvados</p>
            </div>
            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-3">
                   <PiggyBank className="w-6 h-6" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">$85.50</p>
+              <p className="text-3xl font-bold text-gray-900">
+                ${stats.dineroAhorrado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
               <p className="text-sm text-gray-500 font-medium">Dinero Ahorrado</p>
            </div>
            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-3">
                   <Heart className="w-6 h-6" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">3</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.localesFavoritos}</p>
               <p className="text-sm text-gray-500 font-medium">Locales Favoritos</p>
            </div>
         </div>
