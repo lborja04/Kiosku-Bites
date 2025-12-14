@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react'; // Agregue AlertCircle
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,7 @@ const ComboDetail = () => {
   const [otherCombos, setOtherCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState(null);
+  const [isTimeValid, setIsTimeValid] = useState(true); // NUEVO ESTADO PARA VALIDAR HORA
 
   // Estados de Reseñas
   const [reviews, setReviews] = useState([]);
@@ -43,6 +44,64 @@ const ComboDetail = () => {
     fetchClientId();
   }, [user]);
 
+  // FUNCIÓN HELPER: Verifica si la hora actual está dentro del rango
+  const checkAvailability = (scheduleString) => {
+    if (!scheduleString) return true; // Si no hay horario, permitir
+    
+    try {
+        // 1. Separar el rango. Buscamos el segundo valor (la hora de fin)
+        // Soporta guiones: "12:00 - 16:00"
+        const parts = scheduleString.split('-');
+        if (parts.length < 2) return true; // Si es texto tipo "Todo el día", permitir.
+
+        const endTimeString = parts[1].trim(); 
+        
+        // 2. Parsear la hora (Soporta: "16:00", "4:00 PM", "04:00pm")
+        const parseTime = (str) => {
+            const lowerStr = str.toLowerCase();
+            const isPM = lowerStr.includes('pm');
+            const isAM = lowerStr.includes('am');
+            
+            // Limpiamos todo lo que no sea números o dos puntos
+            const numbers = lowerStr.replace(/[^0-9:]/g, '');
+            const timeParts = numbers.split(':');
+            
+            let h = Number(timeParts[0]);
+            let m = Number(timeParts[1]) || 0; // Si no hay minutos, es 0
+
+            if (isNaN(h)) return null; // Fallo al parsear
+
+            // Conversión 12h a 24h
+            if (isPM && h < 12) h += 12;
+            if (isAM && h === 12) h = 0;
+            
+            return { h, m };
+        };
+
+        const parsedEnd = parseTime(endTimeString);
+        if (!parsedEnd) return true; // Ante la duda (parseo fallido), permitir compra
+
+        // 3. Crear fechas para comparar
+        const now = new Date();
+        const endDate = new Date();
+        endDate.setHours(parsedEnd.h, parsedEnd.m, 0, 0);
+
+        // Caso especial: Madrugada (Ej: Cierra a las 02:00 AM)
+        // Si la hora de cierre es muy pequeña (ej: 2 AM) y ahora es tarde (ej: 11 PM),
+        // probablemente el cierre es MAÑANA, no hoy.
+        // (Lógica simple: si el cierre es antes de las 6 AM y ahora es después de las 6 PM)
+        if (parsedEnd.h < 6 && now.getHours() > 18) {
+             endDate.setDate(endDate.getDate() + 1); // Sumar un día al cierre
+        }
+
+        return now <= endDate;
+
+    } catch (e) {
+        console.warn("Error validando horario:", e);
+        return true; // En caso de error de código, no bloquear ventas
+    }
+  };
+
   // 2. CARGAR DATOS
   useEffect(() => {
     const fetchComboDetail = async () => {
@@ -58,7 +117,12 @@ const ComboDetail = () => {
 
         if (comboError) throw comboError;
 
-        // B. Fetch Reseñas (Incluyendo columna 'destacado')
+        // Validar Horario
+        const horario = comboData.local?.horario || "";
+        const available = checkAvailability(horario);
+        setIsTimeValid(available);
+
+        // B. Fetch Reseñas
         const { data: reviewsData, error: reviewsError } = await supabase
             .from('resena')
             .select(`*, cliente:id_cliente(usuario(nombre))`)
@@ -67,7 +131,6 @@ const ComboDetail = () => {
         
         if(reviewsError) console.error("Error fetching reviews:", reviewsError);
 
-        // Calcular promedio
         let avg = 0;
         if (reviewsData && reviewsData.length > 0) {
             const total = reviewsData.reduce((acc, curr) => acc + curr.calificacion, 0);
@@ -85,7 +148,7 @@ const ComboDetail = () => {
             image: comboData.url_imagen || "https://placehold.co/600x400?text=Sin+Imagen",
             content: comboData.incluye ? comboData.incluye.split(',') : [],
             restaurant: comboData.local?.nombre_local || "Restaurante",
-            pickupTime: comboData.local?.horario || "Consultar",
+            pickupTime: horario || "Consultar",
             locationString: comboData.local?.ubicacion,
             rating: avg,
             reviewsCount: reviewsData?.length || 0
@@ -101,7 +164,7 @@ const ComboDetail = () => {
             isFeatured: r.destacado
         })) || []);
 
-        // C. Fetch "Otros Combos" (CORREGIDO: Ahora traemos las reseñas para calcular estrellas)
+        // C. Fetch "Otros Combos"
         const { data: othersData } = await supabase
             .from('combo')
             .select(`
@@ -118,7 +181,6 @@ const ComboDetail = () => {
         
         if (othersData) {
             setOtherCombos(othersData.map(c => {
-                // Cálculo de promedio para cada combo de la lista lateral
                 const ratings = c.resena || [];
                 let otherAvg = null;
                 if (ratings.length > 0) {
@@ -132,7 +194,7 @@ const ComboDetail = () => {
                     discountPrice: c.precio_descuento,
                     image: c.url_imagen,
                     restaurant: c.local?.nombre_local,
-                    rating: otherAvg // Guardamos el promedio real o null si no tiene
+                    rating: otherAvg 
                 };
             }));
         }
@@ -176,6 +238,12 @@ const ComboDetail = () => {
   };
 
   const handleAddToCart = async () => {
+    // NUEVA VALIDACIÓN
+    if (!isTimeValid) {
+        toast({ title: "Horario finalizado", description: "Lo sentimos, el horario de recogida ha terminado por hoy.", variant: "destructive" });
+        return;
+    }
+
     if (!user || user.type !== 'cliente') {
       toast({ title: "Acceso requerido", description: "Inicia sesión como cliente para comprar.", variant: "destructive" });
       if(!user) navigate('/login');
@@ -272,7 +340,16 @@ const ComboDetail = () => {
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                            <img src={combo.image} alt={combo.name} className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-md" />
+                            <div className="relative">
+                                <img src={combo.image} alt={combo.name} className={`w-full h-64 md:h-80 object-cover rounded-2xl shadow-md ${!isTimeValid ? 'grayscale' : ''}`} />
+                                {!isTimeValid && (
+                                    <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
+                                        <span className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg rotate-[-10deg] shadow-lg border-2 border-white">
+                                            HORARIO FINALIZADO
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </motion.div>
 
                         <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
@@ -292,8 +369,8 @@ const ComboDetail = () => {
                             </div>
                             
                             <div className="flex flex-col space-y-2 mb-6 text-sm">
-                                <div className="flex items-center text-gray-700">
-                                    <Clock className="w-4 h-4 mr-2 text-primary" />
+                                <div className={`flex items-center p-2 rounded-lg ${isTimeValid ? 'bg-gray-50 text-gray-700' : 'bg-red-50 text-red-700 font-bold'}`}>
+                                    {isTimeValid ? <Clock className="w-4 h-4 mr-2 text-primary" /> : <AlertCircle className="w-4 h-4 mr-2"/>}
                                     <span className="font-medium">Horario: {combo.pickupTime}</span>
                                 </div>
                                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center group transition-colors ${mapsUrl !== '#' ? 'text-blue-600 hover:text-blue-800 cursor-pointer' : 'text-gray-500 pointer-events-none'}`}>
@@ -314,8 +391,19 @@ const ComboDetail = () => {
                                 </div>
                             </div>
 
-                            <Button onClick={handleAddToCart} size="lg" className="w-full btn-gradient text-lg shadow-md h-12 rounded-xl">
-                                <ShoppingBag className="w-5 h-5 mr-2" /> Añadir al Carrito
+                            {/* BOTÓN DE COMPRA MODIFICADO */}
+                            <Button 
+                                onClick={handleAddToCart} 
+                                size="lg" 
+                                disabled={!isTimeValid} // Deshabilita el botón si la hora pasó
+                                className={`w-full text-lg shadow-md h-12 rounded-xl transition-all ${
+                                    isTimeValid 
+                                    ? 'btn-gradient' 
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300'
+                                }`}
+                            >
+                                <ShoppingBag className="w-5 h-5 mr-2" /> 
+                                {isTimeValid ? "Añadir al Carrito" : "Horario Finalizado"}
                             </Button>
                         </motion.div>
                     </div>
@@ -455,7 +543,6 @@ const ComboDetail = () => {
                           ) : (
                               <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">Nuevo</span>
                           )}
-                          {/* CORREGIDO: Formato de precio con 2 decimales */}
                           <span className="text-lg font-black text-primary">${Number(otherCombo.discountPrice).toFixed(2)}</span>
                         </div>
                       </div>
