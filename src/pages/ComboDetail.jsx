@@ -91,33 +91,50 @@ const ComboDetail = () => {
             reviewsCount: reviewsData?.length || 0
         });
 
-        // Formatear reseñas (Mapeamos 'destacado')
+        // Formatear reseñas
         setReviews(reviewsData?.map(r => ({
             id: r.id_resena,
             user: r.cliente?.usuario?.nombre || "Usuario Anónimo",
             rating: r.calificacion,
             comment: r.comentario,
             date: r.fecha_resena,
-            isFeatured: r.destacado // <--- Aquí capturamos el booleano
+            isFeatured: r.destacado
         })) || []);
 
-        // C. Fetch "Otros Combos"
+        // C. Fetch "Otros Combos" (CORREGIDO: Ahora traemos las reseñas para calcular estrellas)
         const { data: othersData } = await supabase
             .from('combo')
-            .select(`id_combo, nombre_bundle, precio_descuento, url_imagen, local:local!fk_combo_local(nombre_local)`)
+            .select(`
+                id_combo, 
+                nombre_bundle, 
+                precio_descuento, 
+                url_imagen, 
+                local:local!fk_combo_local(nombre_local),
+                resena(calificacion) 
+            `)
             .neq('id_combo', comboIdParam)
             .eq('estadisponible', true)
             .limit(3);
         
         if (othersData) {
-            setOtherCombos(othersData.map(c => ({
-                id: c.id_combo,
-                name: c.nombre_bundle,
-                discountPrice: c.precio_descuento,
-                image: c.url_imagen,
-                restaurant: c.local?.nombre_local,
-                rating: null 
-            })));
+            setOtherCombos(othersData.map(c => {
+                // Cálculo de promedio para cada combo de la lista lateral
+                const ratings = c.resena || [];
+                let otherAvg = null;
+                if (ratings.length > 0) {
+                    const total = ratings.reduce((acc, curr) => acc + curr.calificacion, 0);
+                    otherAvg = (total / ratings.length).toFixed(1);
+                }
+
+                return {
+                    id: c.id_combo,
+                    name: c.nombre_bundle,
+                    discountPrice: c.precio_descuento,
+                    image: c.url_imagen,
+                    restaurant: c.local?.nombre_local,
+                    rating: otherAvg // Guardamos el promedio real o null si no tiene
+                };
+            }));
         }
 
       } catch (error) {
@@ -131,11 +148,10 @@ const ComboDetail = () => {
     if (comboIdParam) fetchComboDetail();
   }, [comboIdParam, refreshTrigger]);
 
-  // --- LOGICA DE ORDENAMIENTO (Destacados SIEMPRE PRIMERO) ---
+  // --- LOGICA DE ORDENAMIENTO ---
   const sortedReviews = useMemo(() => {
       if (!reviews.length) return [];
       
-      // Función de comparación base (según el filtro seleccionado)
       const compareFn = (a, b) => {
           switch(sortOption) {
               case 'date_desc': return new Date(b.date) - new Date(a.date);
@@ -146,11 +162,9 @@ const ComboDetail = () => {
           }
       };
 
-      // Separamos destacadas de normales
       const featured = reviews.filter(r => r.isFeatured).sort(compareFn);
       const regular = reviews.filter(r => !r.isFeatured).sort(compareFn);
 
-      // Retornamos destacadas primero + el resto después
       return [...featured, ...regular];
   }, [reviews, sortOption]);
 
@@ -256,7 +270,6 @@ const ComboDetail = () => {
               {/* COLUMNA IZQUIERDA (Detalles) */}
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    {/* ... (Sección de imagen, info y precios igual que antes) ... */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
                             <img src={combo.image} alt={combo.name} className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-md" />
@@ -421,7 +434,7 @@ const ComboDetail = () => {
                 </div>
               </div>
 
-              {/* COLUMNA DERECHA */}
+              {/* COLUMNA DERECHA (Otras ofertas) */}
               <aside className="lg:col-span-1 space-y-6">
                 <h3 className="text-xl font-bold text-gray-900">Otras ofertas flash ⚡</h3>
                 {otherCombos.length > 0 ? otherCombos.map(otherCombo => (
@@ -442,7 +455,8 @@ const ComboDetail = () => {
                           ) : (
                               <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">Nuevo</span>
                           )}
-                          <span className="text-lg font-black text-primary">${otherCombo.discountPrice}</span>
+                          {/* CORREGIDO: Formato de precio con 2 decimales */}
+                          <span className="text-lg font-black text-primary">${Number(otherCombo.discountPrice).toFixed(2)}</span>
                         </div>
                       </div>
                   </Link>
