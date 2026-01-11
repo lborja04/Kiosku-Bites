@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-// Agregado AlertTriangle a los imports
 import { Plus, Edit, Trash2, Image as ImageIcon, Loader2, Save, X, UploadCloud, Tag, Percent, List, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/services/supabaseAuthClient'; 
 import { useAuth } from '@/contexts/AuthContext';
 
-// --- LISTA DE CATEGORÍAS PREDEFINIDAS ---
+// --- LISTA DE CATEGORÍAS AMPLIADA ---
 const CATEGORIAS_OPTIONS = [
+    // Comidas del día
     "Desayuno", "Almuerzo", "Merienda", "Cena", 
-    "Panadería", "Postres", "Vegetariano", "Vegano", 
-    "Pizza", "Hamburguesas", "Asiática", "Mariscos", 
-    "Bebidas", "Saludable", "Otro"
+    // Tipos de Comida
+    "Comida Rápida", "Casera", "Saludable", "Gourmet",
+    // Estilos / Origen
+    "Mexicana", "Italiana", "Asiática", "Árabe", "Internacional", "Tradicional",
+    // Productos Específicos
+    "Pizza", "Hamburguesas", "Tacos", "Sushi", "Mariscos", "Carnes / Parrilla", "Pollo", "Sandwiches",
+    // Panadería y Dulces
+    "Panadería", "Pastelería", "Postres", "Helados", "Cafetería",
+    // Dietas Especiales
+    "Vegetariano", "Vegano", "Sin Gluten", "Keto",
+    // Bebidas
+    "Bebidas", "Jugos / Batidos", "Licores",
+    // Otros
+    "Snacks", "Otro"
 ];
 
 // --- COMPONENTE DE FORMULARIO ---
@@ -174,7 +185,7 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
 
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Categorías (Selecciona varias)</label>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border rounded-lg bg-gray-50">
                             {CATEGORIAS_OPTIONS.map(cat => (
                                 <button
                                     key={cat}
