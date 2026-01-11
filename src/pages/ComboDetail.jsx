@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react'; // Agregue AlertCircle
+import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle, Edit, Trash2 } from 'lucide-react'; // Agregue AlertCircle, Edit, Trash2
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/services/supabaseAuthClient';
+import { supabase, updateReview, deleteReview } from '@/services/supabaseAuthClient';
 
 const ComboDetail = () => {
   const { id: comboIdParam } = useParams();
@@ -23,6 +23,10 @@ const ComboDetail = () => {
   // Estados de Reseñas
   const [reviews, setReviews] = useState([]);
   const [sortOption, setSortOption] = useState('date_desc'); 
+    const [editingReviewId, setEditingReviewId] = useState(null);
+    const [editedRating, setEditedRating] = useState(5);
+    const [editedComment, setEditedComment] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Estados del Formulario
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -125,7 +129,7 @@ const ComboDetail = () => {
         // B. Fetch Reseñas
         const { data: reviewsData, error: reviewsError } = await supabase
             .from('resena')
-            .select(`*, cliente:id_cliente(usuario(nombre))`)
+            .select(`*, id_cliente, cliente:id_cliente(usuario(nombre))`)
             .eq('id_combo', comboData.id_combo) 
             .order('fecha_resena', { ascending: false });
         
@@ -157,6 +161,7 @@ const ComboDetail = () => {
         // Formatear reseñas
         setReviews(reviewsData?.map(r => ({
             id: r.id_resena,
+            authorId: r.id_cliente,
             user: r.cliente?.usuario?.nombre || "Usuario Anónimo",
             rating: r.calificacion,
             comment: r.comentario,
@@ -347,6 +352,50 @@ const ComboDetail = () => {
       }
   };
 
+      // --- Edit / Delete Handlers ---
+      const handleStartEdit = (review) => {
+        setEditingReviewId(review.id);
+        setEditedRating(review.rating || 5);
+        setEditedComment(review.comment || '');
+      };
+
+      const handleCancelEdit = () => {
+        setEditingReviewId(null);
+        setEditedRating(5);
+        setEditedComment('');
+      };
+
+      const handleSaveEdit = async (reviewId) => {
+        if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
+        setIsSavingEdit(true);
+        try {
+          const updated = await updateReview(reviewId, { calificacion: editedRating, comentario: editedComment }, user.db_id);
+          setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, rating: updated.calificacion, comment: updated.comentario, date: updated.fecha_resena } : r));
+          toast({ title: 'Reseña editada', description: 'Tu reseña se actualizó correctamente.', className: 'bg-green-50' });
+          handleCancelEdit();
+        } catch (err) {
+          console.error('Error editando reseña:', err);
+          toast({ title: 'Error', description: err.message || 'No se pudo editar la reseña.', variant: 'destructive' });
+        } finally {
+          setIsSavingEdit(false);
+        }
+      };
+
+      const handleDelete = async (reviewId) => {
+        if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
+        const ok = window.confirm('¿Eliminar reseña? Esta acción no se puede deshacer.');
+        if (!ok) return;
+        try {
+          await deleteReview(reviewId, user.db_id);
+          setReviews(prev => prev.filter(r => r.id !== reviewId));
+          setCombo(prev => prev ? { ...prev, reviewsCount: Math.max(0, (prev.reviewsCount || 1) - 1) } : prev);
+          toast({ title: 'Reseña eliminada', description: 'Tu reseña fue borrada.', className: 'bg-green-50' });
+        } catch (err) {
+          console.error('Error eliminando reseña:', err);
+          toast({ title: 'Error', description: err.message || 'No se pudo eliminar la reseña.', variant: 'destructive' });
+        }
+      };
+
 
   if (loading) return <div className="min-h-screen flex justify-center items-center"><Loader2 className="animate-spin w-10 h-10 text-primary"/></div>;
   if (!combo) return <div className="min-h-screen flex items-center justify-center"><h1 className="text-2xl">Combo no encontrado</h1></div>;
@@ -532,11 +581,48 @@ const ComboDetail = () => {
                                 </div>
                                 <span className="text-xs text-gray-500">{new Date(review.date).toLocaleDateString()}</span>
                               </div>
-                              <div className="flex bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded-md text-sm font-bold">
-                                <Star className="w-3.5 h-3.5 fill-current mr-1 mt-0.5" /> {review.rating}
+                              <div className="flex items-center gap-3">
+                                <div className="flex bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded-md text-sm font-bold">
+                                  <Star className="w-3.5 h-3.5 fill-current mr-1 mt-0.5" /> {review.rating}
+                                </div>
+                                {/* Acciones: solo autor */}
+                                {(user?.db_id || clientId) === review.authorId ? (
+                                  editingReviewId === review.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <Button size="sm" onClick={() => handleSaveEdit(review.id)} disabled={isSavingEdit} className="btn-gradient">
+                                        {isSavingEdit ? <Loader2 className="animate-spin w-4 h-4 mr-2"/> : null} Guardar
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={handleCancelEdit}>Cancelar</Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <Button variant="ghost" size="sm" onClick={() => handleStartEdit(review)} title="Editar reseña">
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleDelete(review.id)} title="Eliminar reseña">
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                      </Button>
+                                    </div>
+                                  )
+                                ) : null}
                               </div>
                             </div>
-                            <p className="text-gray-600 text-sm leading-relaxed">"{review.comment}"</p>
+
+                            {editingReviewId === review.id ? (
+                              <div className="mt-2">
+                                <div className="flex items-center mb-2">
+                                  {[1,2,3,4,5].map(s => (
+                                    <button key={s} type="button" onClick={() => setEditedRating(s)} className="focus:outline-none">
+                                      <Star className={`w-6 h-6 ${s <= editedRating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`} />
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea value={editedComment} onChange={(e) => setEditedComment(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none mb-2 bg-gray-50 text-sm" rows={3} />
+                              </div>
+                            ) : (
+                              <p className="text-gray-600 text-sm leading-relaxed">"{review.comment}"</p>
+                            )}
+
                             {review.isFeatured && (
                                 <div className="mt-3 text-xs text-amber-700 flex items-center">
                                     <CheckCircle2 className="w-3 h-3 mr-1" /> El local destacó esta opinión

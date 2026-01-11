@@ -138,3 +138,61 @@ export const signOutSupabase = async () => {
     throw err;
   }
 };
+export const updateReview = async (reviewId, updates, userDbId) => {
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('resena')
+      .select('id_resena, id_cliente')
+      .eq('id_resena', reviewId)
+      .single();
+
+    if (fetchErr) throw fetchErr;
+    if (!existing) throw new Error('Reseña no encontrada');
+    if (existing.id_cliente !== userDbId) throw new Error('No autorizado para editar esta reseña');
+
+    const { data, error } = await supabase
+      .from('resena')
+      .update({
+        calificacion: updates.calificacion,
+        comentario: updates.comentario,
+        fecha_resena: new Date().toISOString()
+      })
+      .eq('id_resena', reviewId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Elimina una reseña comprobando que el autor coincida con `userDbId`.
+ * @param {number} reviewId
+ * @param {number} userDbId
+ */
+export const deleteReview = async (reviewId, userDbId) => {
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('resena')
+      .select('id_resena, id_cliente')
+      .eq('id_resena', reviewId)
+      .single();
+
+    if (fetchErr) throw fetchErr;
+    if (!existing) throw new Error('Reseña no encontrada');
+    if (existing.id_cliente !== userDbId) throw new Error('No autorizado para eliminar esta reseña');
+
+    const { error } = await supabase
+      .from('resena')
+      .delete()
+      .eq('id_resena', reviewId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    throw err;
+  }
+};
