@@ -61,7 +61,9 @@ const Navbar = () => {
 
   // 2. AHORA SÍ, LA CONDICIÓN DE RETORNO (AL FINAL)
   // Si es un Local en su dashboard, no renderizamos nada.
-  if (user?.type === 'local' && location.pathname.startsWith('/dashboard/local')) {
+  if ((user?.type === 'local' && location.pathname.startsWith('/dashboard/local')) ||
+    location.pathname.startsWith('/admin')) {
+    
     return null; 
   }
 

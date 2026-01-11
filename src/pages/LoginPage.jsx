@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, LogIn, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { signInWithSupabase } from '../services/supabaseAuthClient';
+// IMPORTANTE: Agregamos 'supabase' a la importación para consultar la DB
+import { signInWithSupabase, supabase } from '../services/supabaseAuthClient';
 
 // --- COMPONENTE POPUP (MODAL) ---
 const StatusModal = ({ isOpen, onClose, title, message }) => {
@@ -26,7 +27,7 @@ const StatusModal = ({ isOpen, onClose, title, message }) => {
             </div>
             <h3 className="text-2xl font-bold mb-2 text-red-800">{title}</h3>
             <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
-            <Button onClick={onClose} className="w-full py-6 text-lg bg-red-600 hover:bg-red-700">Intentar de nuevo</Button>
+            <Button onClick={onClose} className="w-full py-6 text-lg bg-red-600 hover:bg-red-700">Entendido</Button>
           </div>
         </motion.div>
       </motion.div>
@@ -39,7 +40,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth(); // Usamos el login del contexto para actualizar estado inmediato
+  const { login } = useAuth();
   
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
   const closeModal = () => setModalState({ ...modalState, isOpen: false });
@@ -55,19 +56,39 @@ const LoginPage = () => {
     }
 
     try {
-      // 1. Llamada a Supabase
+      // 1. Llamada a Supabase (Valida email y contraseña)
       const { auth } = await signInWithSupabase({ email, password });
 
-      // 2. Extraer datos para redirección
-      const tipo = auth?.user?.user_metadata?.tipo_usuario || 'cliente';
+      // 2. VERIFICACIÓN DE SEGURIDAD: Consultar el rol real en la base de datos
+      const { data: dbUser, error: dbError } = await supabase
+        .from('usuario')
+        .select('tipo_usuario, nombre')
+        .eq('id_auth_supabase', auth.user.id)
+        .single();
+
+      // Si hay error en la consulta o el usuario no existe en la tabla pública
+      if (dbError || !dbUser) {
+         throw new Error("Error verificando datos de usuario.");
+      }
+
+      // --- AQUÍ ESTÁ EL BLOQUEO DE ADMIN ---
+      if (dbUser.tipo_usuario === 'admin') {
+          // Cerramos la sesión inmediatamente para expulsarlo
+          await supabase.auth.signOut();
+          // Lanzamos un error específico para que lo capture el catch de abajo
+          throw new Error("ADMIN_RESTRICTED");
+      }
+
+      // 3. Si no es admin, continuamos con el flujo normal
+      // Usamos el tipo real de la base de datos por seguridad
+      const tipo = dbUser.tipo_usuario;
       
-      // 3. Forzar actualización del contexto (aunque el listener lo haría, esto es más rápido para la UX)
       const payload = {
         id: auth.user.id,
-        email: auth?.user?.email || email,
-        nombre: auth?.user?.user_metadata?.nombre || auth?.user?.user_metadata?.full_name || email,
+        email: auth.user.email,
+        nombre: dbUser.nombre || auth.user.user_metadata?.full_name || email,
         type: tipo,
-        user_metadata: auth?.user?.user_metadata
+        user_metadata: auth.user.user_metadata
       };
       
       login(payload);
@@ -83,12 +104,18 @@ const LoginPage = () => {
       let friendlyMessage = error.message;
       const msg = error.message?.toLowerCase() || "";
 
+      // Manejo de errores específicos
       if (msg.includes("invalid login")) {
         errorTitle = "Credenciales incorrectas";
         friendlyMessage = "El correo o la contraseña no coinciden.";
       } else if (msg.includes("email not confirmed")) {
         errorTitle = "Cuenta no verificada";
         friendlyMessage = "Por favor verifica tu correo electrónico antes de entrar.";
+      } 
+      // Mensaje especial para el Admin bloqueado
+      else if (error.message === "ADMIN_RESTRICTED") {
+        errorTitle = "Acceso Restringido";
+        friendlyMessage = "Esta área de ingreso es exclusiva para Clientes y Locales. Los administradores no tienen acceso por aquí.";
       }
 
       setModalState({ isOpen: true, title: errorTitle, message: friendlyMessage });

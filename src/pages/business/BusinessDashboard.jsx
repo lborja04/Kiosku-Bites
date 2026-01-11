@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-// Agregué nuevos iconos para las sugerencias
-import { Package, BarChart2, Star, LogOut, Menu, X, Loader2, ShoppingBag, Settings, Store } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion'; // Asegúrate de importar motion
+import { Package, BarChart2, Star, LogOut, Menu, X, Loader2, ShoppingBag, Settings, Store, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ManageCombos from '@/pages/business/ManageCombos';
 import BusinessStats from '@/pages/business/BusinessStats';
@@ -13,18 +13,50 @@ import { supabase } from '../../services/supabaseAuthClient';
 import LocalDetailsForm from '../../components/business/LocalDetailsForm';
 import ManageOrders from './ManageOrders';
 
+// --- MODAL DE CUENTA NO APROBADA ---
+const ApprovalPendingModal = ({ isOpen, onLogout }) => {
+    if (!isOpen) return null;
+    return (
+        <AnimatePresence>
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+                    className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden p-6 text-center"
+                >
+                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-8 h-8 text-yellow-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Cuenta en Revisión</h3>
+                    <p className="text-gray-600 mb-6 leading-relaxed">
+                        Tu perfil de local ha sido creado pero aún está pendiente de aprobación por parte de nuestros administradores. 
+                        <br/><br/>
+                        Te notificaremos cuando tu cuenta esté activa.
+                    </p>
+                    <Button onClick={onLogout} className="w-full btn-gradient">
+                        Entendido, Cerrar Sesión
+                    </Button>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
 const BusinessDashboard = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Estado para controlar si ya llenó el perfil
+  // Estados de control
   const [localDetailsComplete, setLocalDetailsComplete] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [actualLocalId, setActualLocalId] = useState(null);
-  
-  // Estado para guardar el nombre real del local y mostrarlo en el sidebar
   const [localName, setLocalName] = useState('');
+  
+  // Nuevo Estado: Aprobación
+  const [isApproved, setIsApproved] = useState(true); // Asumimos true para no flashear error, luego validamos
 
   useEffect(() => {
     const checkLocalDetails = async () => {
@@ -37,7 +69,7 @@ const BusinessDashboard = () => {
       try {
         setLoadingDetails(true);
         
-        // 1. Obtener el ID numérico del local desde la tabla usuario
+        // 1. Obtener ID local
         const { data: userData, error: userError } = await supabase
           .from('usuario')
           .select('id_usuario')
@@ -49,32 +81,39 @@ const BusinessDashboard = () => {
         const localNumericId = userData.id_usuario;
         setActualLocalId(localNumericId);
 
-        // 2. Obtener los detalles del local para ver si están completos
-        // NOTA: Cambié 'direccion' por 'ubicacion' y 'horario' para coincidir con tu formulario anterior
+        // 2. Obtener detalles del local (incluyendo 'aprobado')
         const { data: localData, error: localError } = await supabase
           .from('local')
-          .select('nombre_local, descripcion, telefono, ubicacion, horario') 
+          .select('nombre_local, descripcion, telefono, ubicacion, horario, aprobado') 
           .eq('id_local', localNumericId);
 
         if (localError) throw localError;
 
-        // Verificamos si existe data y si los campos críticos tienen valor
         const currentLocal = localData?.[0];
         
         if (currentLocal) {
-            // Guardamos el nombre para el UI
             setLocalName(currentLocal.nombre_local);
 
+            // Verificamos si completó el formulario básico
             const isComplete = 
                 currentLocal.nombre_local && 
                 currentLocal.descripcion && 
                 currentLocal.telefono && 
-                currentLocal.ubicacion && // Verificamos ubicación
-                currentLocal.horario;     // Verificamos horario
+                currentLocal.ubicacion && 
+                currentLocal.horario; 
 
             setLocalDetailsComplete(!!isComplete);
+            
+            // Verificamos APROBACIÓN
+            // Solo si ya completó el perfil nos importa si está aprobado o no.
+            if (isComplete) {
+                setIsApproved(currentLocal.aprobado); 
+            }
+
         } else {
+            // Si no existe registro en tabla 'local', no está completo (es nuevo)
             setLocalDetailsComplete(false);
+            setIsApproved(false); // Técnicamente no está aprobado, pero dejaremos que llene el form primero
         }
 
       } catch (err) {
@@ -88,28 +127,27 @@ const BusinessDashboard = () => {
     checkLocalDetails();
   }, [user?.id]);
 
-  // --- SUGERENCIAS DE NUEVAS SECCIONES ---
   const navLinks = [
-    { to: '', text: 'Resumen', icon: <BarChart2 className="w-5 h-5" /> }, // Stats
-    { to: 'pedidos', text: 'Pedidos / Entregas', icon: <ShoppingBag className="w-5 h-5" /> }, // ¡NUEVO!
+    { to: '', text: 'Resumen', icon: <BarChart2 className="w-5 h-5" /> },
+    { to: 'pedidos', text: 'Pedidos / Entregas', icon: <ShoppingBag className="w-5 h-5" /> },
     { to: 'combos', text: 'Mis Combos', icon: <Package className="w-5 h-5" /> },
     { to: 'opiniones', text: 'Reseñas', icon: <Star className="w-5 h-5" /> },
-    { to: 'configuracion', text: 'Configuración', icon: <Settings className="w-5 h-5" /> }, // ¡NUEVO!
+    { to: 'configuracion', text: 'Configuración', icon: <Settings className="w-5 h-5" /> },
   ];
 
   const handleLinkClick = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // Callback cuando el formulario se completa exitosamente
   const handleLocalDetailsComplete = () => {
-    // Forzamos una recarga rápida o actualizamos estado para quitar el formulario
     setLocalDetailsComplete(true);
-    // Opcional: Podrías volver a hacer fetch del nombre aquí
+    // Al terminar el registro, recargamos para que ahora caiga en la validación de "aprobado"
     window.location.reload(); 
   };
 
-  // 1. Estado de Carga
+  // --- RENDERING CONDICIONAL ---
+
+  // 1. Cargando
   if (loadingDetails) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
@@ -119,12 +157,26 @@ const BusinessDashboard = () => {
     );
   }
 
-  // 2. Si falta info, mostramos el formulario que creamos antes
+  // 2. Si falta info, mostramos el formulario (PRIMERA VEZ)
   if (!localDetailsComplete && actualLocalId !== null) {
     return <LocalDetailsForm userId={actualLocalId} onComplete={handleLocalDetailsComplete} />;
   }
 
-  // 3. Si hay error de auth
+  // 3. Si perfil está completo PERO NO APROBADO -> Popup y bloqueo
+  if (localDetailsComplete && !isApproved) {
+      return (
+          <>
+            <Helmet><title>Cuenta en Revisión - KIOSKU BITES</title></Helmet>
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                {/* Fondo borroso del dashboard (efecto visual) */}
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-md z-10" />
+                <ApprovalPendingModal isOpen={true} onLogout={logout} />
+            </div>
+          </>
+      );
+  }
+
+  // 4. Si hay error de auth
   if (!user?.id || actualLocalId === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4 text-center">
@@ -134,6 +186,7 @@ const BusinessDashboard = () => {
     );
   }
 
+  // 5. Dashboard Normal (Aprobado y Completo)
   return (
     <>
       <Helmet>
@@ -242,8 +295,6 @@ const BusinessDashboard = () => {
                 <Route path="/" element={<BusinessStats />} />
                 <Route path="combos" element={<ManageCombos />} />
                 <Route path="opiniones" element={<ManageReviews />} />
-                
-                {/* Rutas nuevas (puedes implementarlas paso a paso) */}
                 <Route path="pedidos" element={<ManageOrders />} />
                 <Route path="configuracion" element={<BusinessSettings />} />
               </Routes>

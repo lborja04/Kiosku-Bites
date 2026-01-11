@@ -16,27 +16,27 @@ import BusinessDashboard from '@/pages/business/BusinessDashboard';
 import CustomerDashboard from '@/pages/customer/CustomerDashboard';
 import ShoppingCart from '@/pages/ShoppingCart';
 import RestaurantProfile from '@/pages/RestaurantProfile';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminLogin from './pages/AdminLogin'; // <--- 1. IMPORTAR NUEVO LOGIN
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  // Support both `type` and `tipo_usuario` keys on the user object
+  if (!user) return <Navigate to="/login" replace />;
+  
   const userRole = user?.type || user?.tipo_usuario;
+  
+  // Si pedimos un rol específico y el usuario no lo tiene, al home.
   if (role && userRole !== role) {
     return <Navigate to="/" replace />;
   }
   return children;
 };
 
-// COMPONENTE AUXILIAR PARA CONTROLAR EL FOOTER
 const LayoutWithFooterControl = ({ children }) => {
   const location = useLocation();
-  // Lista de rutas donde NO queremos footer
-  const hideFooterRoutes = ['/dashboard/local', '/dashboard/cliente'];
+  // 2. MODIFICADO: Agregamos '/admin-login' para que no salga el footer ahí
+  const hideFooterRoutes = ['/dashboard/local', '/dashboard/cliente', '/admin', '/admin-login'];
   
-  // Verificamos si la ruta actual empieza con alguna de las rutas prohibidas
   const showFooter = !hideFooterRoutes.some(path => location.pathname.startsWith(path));
 
   return (
@@ -58,10 +58,8 @@ function AppContent() {
           <meta name="description" content="Descubre combos de comida deliciosos a precios reducidos y ayuda a reducir el desperdicio alimentario con KIOSKU BITES." />
         </Helmet>
         
-        {/* Navbar ya tiene su propia lógica interna para ocultarse, así que la dejamos aquí */}
         <Navbar />
         
-        {/* Envolvemos las rutas y el footer con nuestra lógica de control */}
         <LayoutWithFooterControl>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -70,8 +68,12 @@ function AppContent() {
             <Route path="/para-empresas" element={<ForBusinessPage />} />
             <Route path="/contacto" element={<Contact />} />
             <Route path="/combo/:id" element={<ComboDetail />} />
+            
+            {/* Rutas de Autenticación */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/admin-login" element={<AdminLogin />} /> {/* <--- 3. NUEVA RUTA ADMIN */}
+            
             <Route path="/local/:id" element={<RestaurantProfile />} />
             
             <Route path="/carrito" element={
@@ -90,6 +92,14 @@ function AppContent() {
                 <BusinessDashboard />
               </PrivateRoute>
             }/>
+
+            {/* Rutas de Administrador (ANTES del comodín *) */}
+            <Route path="/admin/*" element={
+              <PrivateRoute role="admin">
+                <AdminDashboard />
+              </PrivateRoute>
+            }/>
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </LayoutWithFooterControl>
