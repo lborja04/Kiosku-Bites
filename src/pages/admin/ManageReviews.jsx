@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { AlertTriangle, CheckCircle, Trash2, MessageSquare, Loader2, Star, User, Store } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion'; // <--- Importante
+import { AlertTriangle, CheckCircle, Trash2, MessageSquare, Loader2, Star, User, Store, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/services/supabaseAuthClient';
-// Icono extra importado (asegúrate de tenerlo arriba)
-import { ShieldAlert } from 'lucide-react'; 
+
 const ManageReviews = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- ESTADOS PARA EL MODAL DE BORRADO ---
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // --- 1. CARGAR REPORTES ---
   const fetchReports = async () => {
     try {
       setLoading(true);
       
-      // Obtenemos solo reseñas reportadas
-      // Hacemos JOIN con 'combo' (para saber local) y 'cliente' (para saber autor)
       const { data, error } = await supabase
         .from('resena')
         .select(`
@@ -32,7 +35,7 @@ const ManageReviews = () => {
                 usuario ( nombre, email )
             )
         `)
-        .eq('reportado', true) // <--- FILTRO CLAVE
+        .eq('reportado', true)
         .order('fecha_resena', { ascending: false });
 
       if (error) throw error;
@@ -51,31 +54,45 @@ const ManageReviews = () => {
     fetchReports();
   }, []);
 
-  // --- 2. ACCIÓN: ELIMINAR RESEÑA (Aceptar Reporte) ---
-  const handleDeleteReview = async (id) => {
-      if(!window.confirm("¿Estás seguro de eliminar esta reseña permanentemente?")) return;
+  // --- 2. LÓGICA DE BORRADO (MODAL) ---
+
+  // A. Solo abre el modal
+  const handleDeleteClick = (id) => {
+      setReviewToDelete(id);
+      setDeleteModalOpen(true);
+  };
+
+  // B. Ejecuta el borrado real
+  const confirmDelete = async () => {
+      if (!reviewToDelete) return;
+      setIsDeleting(true);
 
       try {
           const { error } = await supabase
             .from('resena')
             .delete()
-            .eq('id_resena', id);
+            .eq('id_resena', reviewToDelete);
 
           if (error) throw error;
 
-          setReports(reports.filter(r => r.id_resena !== id));
+          setReports(reports.filter(r => r.id_resena !== reviewToDelete));
           toast({ title: "Reseña Eliminada", className: "bg-red-50 border-red-200" });
+          
+          // Cerrar modal
+          setDeleteModalOpen(false);
+          setReviewToDelete(null);
 
       } catch (err) {
           console.error(err);
           toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
+      } finally {
+          setIsDeleting(false);
       }
   };
 
   // --- 3. ACCIÓN: DESESTIMAR REPORTE (Mantener Reseña) ---
   const handleDismissReport = async (id) => {
       try {
-          // Simplemente ponemos reportado = false
           const { error } = await supabase
             .from('resena')
             .update({ reportado: false })
@@ -160,7 +177,7 @@ const ManageReviews = () => {
                               </Button>
                               <Button 
                                   variant="destructive" 
-                                  onClick={() => handleDeleteReview(report.id_resena)}
+                                  onClick={() => handleDeleteClick(report.id_resena)} // CAMBIO AQUÍ
                                   className="bg-red-600 hover:bg-red-700"
                               >
                                   <Trash2 className="w-4 h-4 mr-2" /> Eliminar Contenido
@@ -171,6 +188,57 @@ const ManageReviews = () => {
               ))
           )}
       </div>
+
+      {/* --- MODAL DE CONFIRMACIÓN (INTEGRADO) --- */}
+      <AnimatePresence>
+        {deleteModalOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-100"
+                >
+                    <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
+                        <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                        ¿Eliminar Reseña Permanentemente?
+                    </h3>
+                    
+                    <p className="text-gray-500 text-center text-sm mb-6 px-4">
+                        Esta acción es irreversible y eliminará el contenido reportado de la plataforma.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setDeleteModalOpen(false)}
+                            disabled={isDeleting}
+                            className="w-full"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="w-full bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
+                            Eliminar
+                        </Button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

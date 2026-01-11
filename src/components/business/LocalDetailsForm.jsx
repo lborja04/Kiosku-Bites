@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- 1. IMPORTAR ESTO
+import { useNavigate } from 'react-router-dom'; 
 import { supabase } from '../../services/supabaseAuthClient';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, Clock, ArrowRight } from 'lucide-react';
+import { Loader2, MapPin, Clock, ArrowRight, Image as ImageIcon, UploadCloud } from 'lucide-react';
 
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -42,7 +42,7 @@ const LocationPickerMap = ({ onLocationSelect, initialPosition }) => {
     };
 
     return (
-        <div style={{ height: '350px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '2px solid #e5e7eb' }}>
+        <div style={{ height: '300px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '2px solid #e5e7eb' }}>
             <MapContainer
                 center={defaultCenter}
                 zoom={13}
@@ -59,18 +59,16 @@ const LocationPickerMap = ({ onLocationSelect, initialPosition }) => {
     );
 };
 
-// --- HELPER PARA GENERAR HORAS ---
+// --- HELPER PARA GENERAR HORAS (24 HORAS) ---
 const generateTimeOptions = () => {
     const options = [];
-    const periods = ['AM', 'PM'];
+    // Cambiamos el bucle para ir de 0 a 23 (Todas las horas del día)
     for (let i = 0; i < 24; i++) {
-        const hour = i % 12 === 0 ? 12 : i % 12;
+        const hour = i % 12 === 0 ? 12 : i % 12; // Convierte 0 a 12, 13 a 1, etc.
         const period = i < 12 ? 'AM' : 'PM';
         
-        if (i >= 6 && i <= 23) { 
-            options.push(`${hour}:00 ${period}`);
-            options.push(`${hour}:30 ${period}`);
-        }
+        options.push(`${hour}:00 ${period}`);
+        options.push(`${hour}:30 ${period}`);
     }
     return options;
 };
@@ -79,16 +77,17 @@ const timeOptions = generateTimeOptions();
 
 // --- COMPONENTE PRINCIPAL ---
 const LocalDetailsForm = ({ userId, onComplete }) => {
-    const navigate = useNavigate(); // <--- 2. INICIALIZAR HOOK DE NAVEGACIÓN
+    const navigate = useNavigate();
 
     // Campos del formulario
     const [nombre_local, setNombreLocal] = useState('');
     const [descripcion, setDescripcion] = useState('');
     const [telefono, setTelefono] = useState('');
+    const [url_imagen, setUrlImagen] = useState(''); 
     
-    // Estados para el horario
-    const [horaInicio, setHoraInicio] = useState('4:00 PM');
-    const [horaFin, setHoraFin] = useState('8:00 PM');
+    // Estados para el horario (Por defecto ponemos algo razonable, pero el usuario puede cambiarlo a cualquiera de las 24h)
+    const [horaInicio, setHoraInicio] = useState('8:00 AM');
+    const [horaFin, setHoraFin] = useState('10:00 PM');
 
     // Estados ubicación
     const [latitud, setLatitud] = useState('');
@@ -97,6 +96,7 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
     // Estados UI
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [error, setError] = useState(null);
 
     const localCoords = useMemo(() => {
@@ -138,13 +138,50 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
         fetchLocalName();
     }, [userId]);
 
+    // --- SUBIDA DE IMAGEN ---
+    const handleImageUpload = async (event) => {
+        try {
+            setUploadingImage(true);
+            const file = event.target.files[0];
+            
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                throw new Error("La imagen es muy pesada. Máximo 2MB.");
+            }
+
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${userId}/${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('logos-locales')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('logos-locales')
+                .getPublicUrl(filePath);
+
+            setUrlImagen(publicUrl);
+            toast({ title: "Imagen subida", description: "Se guardará al finalizar el registro." });
+
+        } catch (error) {
+            console.error("Error subiendo imagen:", error);
+            toast({ title: "Error al subir", description: error.message, variant: "destructive" });
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
         setError(null);
 
         if (!nombre_local?.trim() || !descripcion?.trim() || !telefono?.trim() || !latitud || !longitud) {
-            setError('Por favor complete todos los campos y seleccione su ubicación en el mapa.');
+            setError('Por favor complete todos los campos obligatorios y marque su ubicación.');
             toast({ title: "Faltan datos", variant: "destructive" });
             setSubmitting(false);
             return;
@@ -169,7 +206,7 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                 telefono: telefonoLimpio,
                 ubicacion: ubicacionString,
                 horario: horarioString,
-                // Aseguramos que siga como no aprobado por si acaso
+                url_imagen: url_imagen,
                 aprobado: false 
             };
 
@@ -179,21 +216,15 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
 
             if (upsertError) throw upsertError;
 
-            // --- 3. LÓGICA DE CIERRE DE SESIÓN ---
             toast({
                 title: "Solicitud Enviada",
                 description: "Tus datos han sido guardados. Debes esperar la aprobación del administrador.",
                 className: "bg-blue-50 border-blue-200"
             });
 
-            // Pequeña espera para que el usuario lea el toast
             setTimeout(async () => {
-                await supabase.auth.signOut(); // Cerrar sesión en Supabase
-                
-                // Si tienes una función onComplete, la llamamos (opcional)
+                await supabase.auth.signOut();
                 if (onComplete) onComplete(); 
-                
-                // Redirigir al login
                 navigate('/login', { replace: true });
             }, 2000);
 
@@ -204,7 +235,7 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
             } else {
                 setError('Error al guardar: ' + err.message);
             }
-            setSubmitting(false); // Solo quitamos submitting si hubo error
+            setSubmitting(false);
         }
     };
 
@@ -218,7 +249,7 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-3xl">
+            <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl my-8">
                 <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Completa tu Perfil</h2>
                 <p className="text-center text-gray-500 mb-8">
                     Necesitamos estos datos para que los clientes puedan encontrarte.
@@ -231,8 +262,9 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* COLUMNA IZQUIERDA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        
+                        {/* --- COLUMNA IZQUIERDA: DATOS --- */}
                         <div className="space-y-5">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Nombre del Local</label>
@@ -282,51 +314,89 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                                         {timeOptions.map(t => <option key={`end-${t}`} value={t}>{t}</option>)}
                                     </select>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Intervalo en el que los clientes pueden pasar a recoger.
-                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Descripción</label>
+                                <textarea
+                                    value={descripcion}
+                                    onChange={(e) => setDescripcion(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none resize-none"
+                                    placeholder="Describe qué tipo de comida vendes..."
+                                    rows={4}
+                                    required
+                                />
                             </div>
                         </div>
 
-                        {/* COLUMNA DERECHA */}
-                        <div className="flex flex-col h-full">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Descripción</label>
-                            <textarea
-                                value={descripcion}
-                                onChange={(e) => setDescripcion(e.target.value)}
-                                className="flex-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none resize-none"
-                                placeholder="Describe qué tipo de comida vendes, especialidades..."
-                                required
-                            />
-                        </div>
-                    </div>
+                        {/* --- COLUMNA DERECHA: IMAGEN + MAPA --- */}
+                        <div className="flex flex-col gap-6">
+                            
+                            {/* SUBIDA DE IMAGEN */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                    <ImageIcon className="w-4 h-4 mr-1 text-primary" /> Logo / Foto del Local
+                                </label>
+                                <div className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-white transition-colors">
+                                    {/* Preview */}
+                                    <div className="relative w-full h-32 bg-gray-200 rounded-md overflow-hidden mb-3 flex items-center justify-center">
+                                        {url_imagen ? (
+                                            <img src={url_imagen} alt="Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <ImageIcon className="w-8 h-8 text-gray-400" />
+                                        )}
+                                        
+                                        {uploadingImage && (
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                <Loader2 className="animate-spin text-white w-6 h-6" />
+                                            </div>
+                                        )}
+                                    </div>
 
-                    {/* MAPA */}
-                    <div className="border-t pt-6">
-                        <label className="block text-sm font-bold text-gray-700 flex items-center mb-2">
-                            <MapPin className="w-4 h-4 mr-1 text-primary" /> Ubicación Exacta
-                        </label>
-                        
-                        <div className="bg-blue-50 text-blue-800 px-3 py-2 rounded-md mb-3 text-xs flex items-center">
-                           <MapPin className="w-3 h-3 mr-1"/> Busca tu local en el mapa y haz <strong>click</strong> para marcarlo.
-                        </div>
+                                    {/* Botón Upload */}
+                                    <label className="cursor-pointer">
+                                        <div className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                            <UploadCloud className="w-4 h-4 mr-2" />
+                                            {url_imagen ? 'Cambiar Imagen' : 'Subir Imagen'}
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={handleImageUpload}
+                                            disabled={uploadingImage}
+                                        />
+                                    </label>
+                                    <p className="text-xs text-gray-400 mt-2">Máximo 2MB (JPG, PNG)</p>
+                                </div>
+                            </div>
 
-                        <LocationPickerMap
-                            onLocationSelect={handleLocationSelect}
-                            initialPosition={localCoords}
-                        />
+                            {/* MAPA */}
+                            <div className="flex-1 flex flex-col">
+                                <label className="block text-sm font-bold text-gray-700 flex items-center mb-2">
+                                    <MapPin className="w-4 h-4 mr-1 text-primary" /> Ubicación Exacta
+                                </label>
+                                <div className="bg-blue-50 text-blue-800 px-3 py-2 rounded-md mb-2 text-xs">
+                                   Haz <strong>click en el mapa</strong> para marcar tu local.
+                                </div>
+                                <LocationPickerMap
+                                    onLocationSelect={handleLocationSelect}
+                                    initialPosition={localCoords}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <Button
                         type="submit"
-                        className="w-full py-4 text-lg font-bold btn-gradient shadow-lg"
-                        disabled={submitting}
+                        className="w-full py-4 text-lg font-bold btn-gradient shadow-lg mt-6"
+                        disabled={submitting || uploadingImage}
                     >
                         {submitting ? (
                             <div className="flex items-center">
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Guardando...
                             </div>
-                        ) : 'Guardar y Finalizar'}
+                        ) : 'Guardar y Finalizar Registro'}
                     </Button>
                 </form>
             </div>

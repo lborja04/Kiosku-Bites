@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit, Trash2, Image as ImageIcon, Loader2, Save, X, UploadCloud, Tag, Percent, List } from 'lucide-react';
+// Agregado AlertTriangle a los imports
+import { Plus, Edit, Trash2, Image as ImageIcon, Loader2, Save, X, UploadCloud, Tag, Percent, List, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/services/supabaseAuthClient'; 
@@ -28,14 +29,11 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
     const [formData, setFormData] = useState({
         nombre_bundle: combo?.nombre_bundle || '',
         descripcion: combo?.descripcion || '',
-        
-        // Aquí hacemos la conversión inicial para mostrarlo en líneas
         incluye: formatIncluyeToText(combo?.incluye), 
-        
         precio_original: combo?.precio || '', 
         descuento_porcentaje: 50, 
         url_imagen: combo?.url_imagen || '',
-        estadisponible: combo?.estadisponible !== undefined ? combo.estadisponible : true, // Default true al crear
+        estadisponible: combo?.estadisponible !== undefined ? combo.estadisponible : true, 
         categorias: combo?.categoria ? combo.categoria.split(',') : [] 
     });
 
@@ -47,7 +45,6 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
         const original = parseFloat(formData.precio_original) || 0;
         const descuento = parseInt(formData.descuento_porcentaje) || 0;
         
-        // Recuperar porcentaje real si estamos editando
         if (combo && formData.precio_original == combo.precio && formData.descuento_porcentaje === 50) {
              if (combo.precio > 0 && combo.precio_descuento) {
                  const calcDesc = Math.round((1 - (combo.precio_descuento / combo.precio)) * 100);
@@ -122,10 +119,6 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
             return;
         }
 
-        // PROCESAR "INCLUYE": Convertir saltos de línea a comas
-        // 1. Separar por salto de línea
-        // 2. Quitar espacios y líneas vacías
-        // 3. Unir con comas
         const incluyeProcesado = formData.incluye
             .split('\n')
             .map(line => line.trim())
@@ -137,7 +130,7 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
             precio: parseFloat(formData.precio_original), 
             precio_descuento: parseFloat(precioFinal.toFixed(2)),
             categoria: formData.categorias.join(','),
-            incluye: incluyeProcesado // Enviamos el string separado por comas
+            incluye: incluyeProcesado 
         });
     };
   
@@ -162,7 +155,6 @@ const ComboForm = ({ combo, onSave, onCancel, isSaving, localId }) => {
                         <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows="3" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="Describe qué podría encontrar el cliente..." required />
                     </div>
 
-                    {/* --- CAMPO INCLUYE MEJORADO --- */}
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center">
                             <List className="w-4 h-4 mr-1"/> ¿Qué incluye?
@@ -295,6 +287,11 @@ const ManageCombos = () => {
     const [saving, setSaving] = useState(false);
     const [localId, setLocalId] = useState(null);
     
+    // NUEVOS ESTADOS PARA MODAL DE BORRADO
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [comboToDelete, setComboToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const { user } = useAuth(); 
 
     const fetchCombos = async () => {
@@ -386,17 +383,32 @@ const ManageCombos = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("¿Estás seguro de eliminar este combo permanentemente?")) return;
+    // 1. Abrir Modal de borrado
+    const openDeleteModal = (id) => {
+        setComboToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    // 2. Ejecutar borrado real
+    const confirmDelete = async () => {
+        if (!comboToDelete) return;
+        setIsDeleting(true);
 
         try {
-            const { error } = await supabase.from('combo').delete().eq('id_combo', id);
+            const { error } = await supabase.from('combo').delete().eq('id_combo', comboToDelete);
             if (error) throw error;
             
-            toast({ title: "Eliminado", description: "El combo ha sido borrado." });
-            setCombos(combos.filter(c => c.id_combo !== id));
+            toast({ title: "Eliminado", description: "El combo ha sido borrado.", className: "bg-green-50" });
+            setCombos(prev => prev.filter(c => c.id_combo !== comboToDelete));
+            
+            // Cerrar modal
+            setDeleteModalOpen(false);
+            setComboToDelete(null);
+
         } catch (error) {
             toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -483,7 +495,7 @@ const ManageCombos = () => {
                                         <Button variant="ghost" size="icon" onClick={() => { setEditingCombo(combo); setIsFormVisible(true); }} className="h-8 w-8 text-gray-500 hover:text-blue-600">
                                             <Edit className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(combo.id_combo)} className="h-8 w-8 text-gray-500 hover:text-red-600">
+                                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(combo.id_combo)} className="h-8 w-8 text-gray-500 hover:text-red-600">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -493,6 +505,57 @@ const ManageCombos = () => {
                     ))}
                 </div>
             </div>
+
+            {/* --- MODAL DE CONFIRMACIÓN DE BORRADO --- */}
+            <AnimatePresence>
+                {deleteModalOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-100"
+                        >
+                            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                ¿Eliminar Combo?
+                            </h3>
+                            
+                            <p className="text-gray-500 text-center text-sm mb-6">
+                                Estás a punto de borrar este producto. Los clientes ya no podrán verlo. Esta acción no se puede deshacer.
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setDeleteModalOpen(false)}
+                                    disabled={isDeleting}
+                                    className="w-full"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button 
+                                    variant="destructive" 
+                                    onClick={confirmDelete}
+                                    disabled={isDeleting}
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                >
+                                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
+                                    Eliminar
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </>
     );
 };

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle, Edit, Trash2 } from 'lucide-react'; // Agregue AlertCircle, Edit, Trash2
+import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,15 +18,21 @@ const ComboDetail = () => {
   const [otherCombos, setOtherCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState(null);
-  const [isTimeValid, setIsTimeValid] = useState(true); // NUEVO ESTADO PARA VALIDAR HORA
+  const [isTimeValid, setIsTimeValid] = useState(true); 
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   // Estados de Reseñas
   const [reviews, setReviews] = useState([]);
   const [sortOption, setSortOption] = useState('date_desc'); 
-    const [editingReviewId, setEditingReviewId] = useState(null);
-    const [editedRating, setEditedRating] = useState(5);
-    const [editedComment, setEditedComment] = useState('');
-    const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editedRating, setEditedRating] = useState(5);
+  const [editedComment, setEditedComment] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // --- NUEVOS ESTADOS PARA EL MODAL DE BORRADO ---
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados del Formulario
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -50,32 +56,27 @@ const ComboDetail = () => {
 
   // FUNCIÓN HELPER: Verifica si la hora actual está dentro del rango
   const checkAvailability = (scheduleString) => {
-    if (!scheduleString) return true; // Si no hay horario, permitir
+    if (!scheduleString) return true; 
     
     try {
-        // 1. Separar el rango. Buscamos el segundo valor (la hora de fin)
-        // Soporta guiones: "12:00 - 16:00"
         const parts = scheduleString.split('-');
-        if (parts.length < 2) return true; // Si es texto tipo "Todo el día", permitir.
+        if (parts.length < 2) return true; 
 
         const endTimeString = parts[1].trim(); 
         
-        // 2. Parsear la hora (Soporta: "16:00", "4:00 PM", "04:00pm")
         const parseTime = (str) => {
             const lowerStr = str.toLowerCase();
             const isPM = lowerStr.includes('pm');
             const isAM = lowerStr.includes('am');
             
-            // Limpiamos todo lo que no sea números o dos puntos
             const numbers = lowerStr.replace(/[^0-9:]/g, '');
             const timeParts = numbers.split(':');
             
             let h = Number(timeParts[0]);
-            let m = Number(timeParts[1]) || 0; // Si no hay minutos, es 0
+            let m = Number(timeParts[1]) || 0; 
 
-            if (isNaN(h)) return null; // Fallo al parsear
+            if (isNaN(h)) return null; 
 
-            // Conversión 12h a 24h
             if (isPM && h < 12) h += 12;
             if (isAM && h === 12) h = 0;
             
@@ -83,26 +84,21 @@ const ComboDetail = () => {
         };
 
         const parsedEnd = parseTime(endTimeString);
-        if (!parsedEnd) return true; // Ante la duda (parseo fallido), permitir compra
+        if (!parsedEnd) return true; 
 
-        // 3. Crear fechas para comparar
         const now = new Date();
         const endDate = new Date();
         endDate.setHours(parsedEnd.h, parsedEnd.m, 0, 0);
 
-        // Caso especial: Madrugada (Ej: Cierra a las 02:00 AM)
-        // Si la hora de cierre es muy pequeña (ej: 2 AM) y ahora es tarde (ej: 11 PM),
-        // probablemente el cierre es MAÑANA, no hoy.
-        // (Lógica simple: si el cierre es antes de las 6 AM y ahora es después de las 6 PM)
         if (parsedEnd.h < 6 && now.getHours() > 18) {
-             endDate.setDate(endDate.getDate() + 1); // Sumar un día al cierre
+             endDate.setDate(endDate.getDate() + 1); 
         }
 
         return now <= endDate;
 
     } catch (e) {
         console.warn("Error validando horario:", e);
-        return true; // En caso de error de código, no bloquear ventas
+        return true; 
     }
   };
 
@@ -112,7 +108,6 @@ const ComboDetail = () => {
       try {
         setLoading(true);
         
-        // A. Fetch Combo
         const { data: comboData, error: comboError } = await supabase
           .from('combo')
           .select(`*, local:local!fk_combo_local (*)`)
@@ -121,12 +116,10 @@ const ComboDetail = () => {
 
         if (comboError) throw comboError;
 
-        // Validar Horario
         const horario = comboData.local?.horario || "";
         const available = checkAvailability(horario);
         setIsTimeValid(available);
 
-        // B. Fetch Reseñas
         const { data: reviewsData, error: reviewsError } = await supabase
             .from('resena')
             .select(`*, id_cliente, cliente:id_cliente(usuario(nombre))`)
@@ -158,7 +151,6 @@ const ComboDetail = () => {
             reviewsCount: reviewsData?.length || 0
         });
 
-        // Formatear reseñas
         setReviews(reviewsData?.map(r => ({
             id: r.id_resena,
             authorId: r.id_cliente,
@@ -169,7 +161,6 @@ const ComboDetail = () => {
             isFeatured: r.destacado
         })) || []);
 
-        // C. Fetch "Otros Combos"
         const { data: othersData } = await supabase
             .from('combo')
             .select(`
@@ -215,7 +206,6 @@ const ComboDetail = () => {
     if (comboIdParam) fetchComboDetail();
   }, [comboIdParam, refreshTrigger]);
 
-  // --- LOGICA DE ORDENAMIENTO ---
   const sortedReviews = useMemo(() => {
       if (!reviews.length) return [];
       
@@ -235,7 +225,6 @@ const ComboDetail = () => {
       return [...featured, ...regular];
   }, [reviews, sortOption]);
 
-  // --- HELPERS & HANDLERS ---
   const getGoogleMapsUrl = (locationString) => {
       if (!locationString || !locationString.includes(',')) return '#';
       const [lat, lng] = locationString.split(',').map(s => s.trim());
@@ -243,7 +232,6 @@ const ComboDetail = () => {
   };
 
   const handleAddToCart = async () => {
-    // NUEVA VALIDACIÓN
     if (!isTimeValid) {
         toast({ title: "Horario finalizado", description: "Lo sentimos, el horario de recogida ha terminado por hoy.", variant: "destructive" });
         return;
@@ -254,25 +242,52 @@ const ComboDetail = () => {
       if(!user) navigate('/login');
       return;
     }
-    
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existingItem = cart.find(item => item.id === combo.id);
 
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      cart.push({ 
-          id: combo.id,
-          name: combo.name,
-          price: combo.discountPrice,
-          image: combo.image,
-          restaurant: combo.restaurant,
-          quantity: 1 
-      });
+    if (!clientId) {
+        toast({ title: "Error", description: "No se pudo identificar tu usuario.", variant: "destructive" });
+        return;
     }
+    
+    setIsAddingToCart(true);
 
-    localStorage.setItem('cart', JSON.stringify(cart));
-    toast({ title: "¡Añadido al carrito!", description: "Listo para finalizar la compra.", className: "bg-green-50 border-green-200" });
+    try {
+        const { data: existingItem, error: fetchError } = await supabase
+            .from('carrito_item')
+            .select('id_carrito_item, cantidad')
+            .eq('id_cliente', clientId)
+            .eq('id_combo', combo.id)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (existingItem) {
+            const { error: updateError } = await supabase
+                .from('carrito_item')
+                .update({ cantidad: existingItem.cantidad + 1 })
+                .eq('id_carrito_item', existingItem.id_carrito_item);
+            
+            if (updateError) throw updateError;
+        } else {
+            const { error: insertError } = await supabase
+                .from('carrito_item')
+                .insert({
+                    id_cliente: clientId,
+                    id_combo: combo.id,
+                    cantidad: 1
+                });
+
+            if (insertError) throw insertError;
+        }
+
+        toast({ title: "¡Añadido al carrito!", description: "Producto guardado en tu cuenta.", className: "bg-green-50 border-green-200" });
+        window.dispatchEvent(new Event('cart-updated'));
+
+    } catch (error) {
+        console.error("Error agregando al carrito:", error);
+        toast({ title: "Error", description: "No se pudo agregar al carrito. Intenta de nuevo.", variant: "destructive" });
+    } finally {
+        setIsAddingToCart(false);
+    }
   };
 
   const handleOpenReviewForm = async () => {
@@ -285,18 +300,15 @@ const ComboDetail = () => {
           return;
       }
 
-      // --- NUEVA VALIDACIÓN: VERIFICAR COMPRA ---
-      // Verificamos si existe al menos una compra de este combo hecha por este cliente
-      // y que NO esté cancelada.
       try {
         const { data, error } = await supabase
             .from('compra')
             .select('id_compra')
             .eq('id_combo', combo.id)
             .eq('id_cliente', clientId)
-            .neq('estado', 'Cancelado') // Importante: que no sea una compra cancelada
+            .neq('estado', 'Cancelado') 
             .limit(1)
-            .maybeSingle(); // Usamos maybeSingle para que no lance error si no hay datos, solo devuelve null
+            .maybeSingle(); 
 
         if (error) throw error;
 
@@ -309,7 +321,6 @@ const ComboDetail = () => {
             return;
         }
 
-        // Si pasó todas las validaciones, mostramos el formulario
         setShowReviewForm(true);
 
       } catch (err) {
@@ -352,49 +363,65 @@ const ComboDetail = () => {
       }
   };
 
-      // --- Edit / Delete Handlers ---
-      const handleStartEdit = (review) => {
-        setEditingReviewId(review.id);
-        setEditedRating(review.rating || 5);
-        setEditedComment(review.comment || '');
-      };
+  const handleStartEdit = (review) => {
+    setEditingReviewId(review.id);
+    setEditedRating(review.rating || 5);
+    setEditedComment(review.comment || '');
+  };
 
-      const handleCancelEdit = () => {
-        setEditingReviewId(null);
-        setEditedRating(5);
-        setEditedComment('');
-      };
+  const handleCancelEdit = () => {
+    setEditingReviewId(null);
+    setEditedRating(5);
+    setEditedComment('');
+  };
 
-      const handleSaveEdit = async (reviewId) => {
-        if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
-        setIsSavingEdit(true);
-        try {
-          const updated = await updateReview(reviewId, { calificacion: editedRating, comentario: editedComment }, user.db_id);
-          setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, rating: updated.calificacion, comment: updated.comentario, date: updated.fecha_resena } : r));
-          toast({ title: 'Reseña editada', description: 'Tu reseña se actualizó correctamente.', className: 'bg-green-50' });
-          handleCancelEdit();
-        } catch (err) {
-          console.error('Error editando reseña:', err);
-          toast({ title: 'Error', description: err.message || 'No se pudo editar la reseña.', variant: 'destructive' });
-        } finally {
-          setIsSavingEdit(false);
-        }
-      };
+  const handleSaveEdit = async (reviewId) => {
+    if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
+    setIsSavingEdit(true);
+    try {
+      const updated = await updateReview(reviewId, { calificacion: editedRating, comentario: editedComment }, user.db_id);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, rating: updated.calificacion, comment: updated.comentario, date: updated.fecha_resena } : r));
+      toast({ title: 'Reseña editada', description: 'Tu reseña se actualizó correctamente.', className: 'bg-green-50' });
+      handleCancelEdit();
+    } catch (err) {
+      console.error('Error editando reseña:', err);
+      toast({ title: 'Error', description: err.message || 'No se pudo editar la reseña.', variant: 'destructive' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
-      const handleDelete = async (reviewId) => {
-        if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
-        const ok = window.confirm('¿Eliminar reseña? Esta acción no se puede deshacer.');
-        if (!ok) return;
-        try {
-          await deleteReview(reviewId, user.db_id);
-          setReviews(prev => prev.filter(r => r.id !== reviewId));
-          setCombo(prev => prev ? { ...prev, reviewsCount: Math.max(0, (prev.reviewsCount || 1) - 1) } : prev);
-          toast({ title: 'Reseña eliminada', description: 'Tu reseña fue borrada.', className: 'bg-green-50' });
-        } catch (err) {
-          console.error('Error eliminando reseña:', err);
-          toast({ title: 'Error', description: err.message || 'No se pudo eliminar la reseña.', variant: 'destructive' });
-        }
-      };
+  // --- NUEVA LÓGICA DE BORRADO ---
+
+  // 1. Solo abre el modal
+  const openDeleteModal = (reviewId) => {
+    setReviewToDelete(reviewId);
+    setDeleteModalOpen(true);
+  };
+
+  // 2. Ejecuta el borrado real
+  const confirmDelete = async () => {
+    if (!user || !user.db_id || !reviewToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteReview(reviewToDelete, user.db_id);
+      setReviews(prev => prev.filter(r => r.id !== reviewToDelete));
+      setCombo(prev => prev ? { ...prev, reviewsCount: Math.max(0, (prev.reviewsCount || 1) - 1) } : prev);
+      
+      toast({ title: 'Reseña eliminada', description: 'Tu reseña fue borrada correctamente.', className: 'bg-green-50' });
+      
+      // Cerrar modal
+      setDeleteModalOpen(false);
+      setReviewToDelete(null);
+
+    } catch (err) {
+      console.error('Error eliminando reseña:', err);
+      toast({ title: 'Error', description: err.message || 'No se pudo eliminar la reseña.', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
 
   if (loading) return <div className="min-h-screen flex justify-center items-center"><Loader2 className="animate-spin w-10 h-10 text-primary"/></div>;
@@ -473,19 +500,23 @@ const ComboDetail = () => {
                                 </div>
                             </div>
 
-                            {/* BOTÓN DE COMPRA MODIFICADO */}
+                            {/* BOTÓN DE COMPRA */}
                             <Button 
                                 onClick={handleAddToCart} 
                                 size="lg" 
-                                disabled={!isTimeValid} // Deshabilita el botón si la hora pasó
+                                disabled={!isTimeValid || isAddingToCart} 
                                 className={`w-full text-lg shadow-md h-12 rounded-xl transition-all ${
                                     isTimeValid 
                                     ? 'btn-gradient' 
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300'
                                 }`}
                             >
-                                <ShoppingBag className="w-5 h-5 mr-2" /> 
-                                {isTimeValid ? "Añadir al Carrito" : "Horario Finalizado"}
+                                {isAddingToCart ? (
+                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                ) : (
+                                    <ShoppingBag className="w-5 h-5 mr-2" />
+                                )}
+                                {isAddingToCart ? "Agregando..." : (isTimeValid ? "Añadir al Carrito" : "Horario Finalizado")}
                             </Button>
                         </motion.div>
                     </div>
@@ -532,7 +563,6 @@ const ComboDetail = () => {
                     </div>
                   </div>
 
-                   {/* FORMULARIO */}
                    <AnimatePresence>
                     {showReviewForm && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-8">
@@ -585,7 +615,6 @@ const ComboDetail = () => {
                                 <div className="flex bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded-md text-sm font-bold">
                                   <Star className="w-3.5 h-3.5 fill-current mr-1 mt-0.5" /> {review.rating}
                                 </div>
-                                {/* Acciones: solo autor */}
                                 {(user?.db_id || clientId) === review.authorId ? (
                                   editingReviewId === review.id ? (
                                     <div className="flex items-center gap-2">
@@ -599,7 +628,8 @@ const ComboDetail = () => {
                                       <Button variant="ghost" size="sm" onClick={() => handleStartEdit(review)} title="Editar reseña">
                                         <Edit className="w-4 h-4" />
                                       </Button>
-                                      <Button variant="ghost" size="sm" onClick={() => handleDelete(review.id)} title="Eliminar reseña">
+                                      {/* AQUÍ CAMBIAMOS EL ONCLICK PARA ABRIR EL MODAL */}
+                                      <Button variant="ghost" size="sm" onClick={() => openDeleteModal(review.id)} title="Eliminar reseña">
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                       </Button>
                                     </div>
@@ -673,6 +703,57 @@ const ComboDetail = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* --- MODAL DE CONFIRMACIÓN (INTEGRADO AL FINAL) --- */}
+      <AnimatePresence>
+        {deleteModalOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-100"
+                >
+                    <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
+                        <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                        ¿Eliminar reseña?
+                    </h3>
+                    
+                    <p className="text-gray-500 text-center text-sm mb-6">
+                        Esta acción no se puede deshacer. ¿Estás seguro de que quieres borrar tu opinión?
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setDeleteModalOpen(false)}
+                            disabled={isDeleting}
+                            className="w-full"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="w-full bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
+                            Eliminar
+                        </Button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

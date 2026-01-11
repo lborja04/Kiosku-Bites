@@ -10,103 +10,194 @@ import { supabase } from '@/services/supabaseAuthClient';
 
 const ShoppingCart = () => {
   const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'cash'
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clientId, setClientId] = useState(null);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Cargar carrito al iniciar
+  // 1. OBTENER ID CLIENTE (Vinculación Auth -> DB)
   useEffect(() => {
-    const storedCart = JSON.parse(localStorage.getItem('cart')) || [];
-    setCartItems(storedCart);
-  }, []);
+    const fetchClientId = async () => {
+        if(user) {
+            // Asumiendo la relación id_auth_supabase -> id_usuario -> id_cliente
+            const { data, error } = await supabase
+                .from('usuario')
+                .select('id_usuario') // En tu esquema id_usuario es FK de cliente
+                .eq('id_auth_supabase', user.id)
+                .single();
+            
+            if(data && !error) {
+                 setClientId(data.id_usuario);
+            }
+        }
+    };
+    fetchClientId();
+  }, [user]);
 
-  const updateCart = (updatedCart) => {
-    setCartItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
+  // 2. CARGAR CARRITO DESDE LA DB
+  const fetchCart = async () => {
+    if (!clientId) return;
+    try {
+        setLoading(true);
+        // Hacemos JOIN: carrito_item -> combo -> local
+        const { data, error } = await supabase
+            .from('carrito_item')
+            .select(`
+                id_carrito_item,
+                cantidad,
+                combo:id_combo (
+                    id_combo,
+                    nombre_bundle,
+                    precio_descuento,
+                    url_imagen,
+                    local:local!fk_combo_local (nombre_local)
+                )
+            `)
+            .eq('id_cliente', clientId)
+            .order('id_carrito_item', { ascending: true });
+
+        if (error) throw error;
+
+        // Formateamos para que la UI lo entienda fácil
+        const formattedItems = data.map(item => ({
+            cartItemId: item.id_carrito_item, // ID de la fila en carrito
+            id: item.combo.id_combo,          // ID del producto
+            name: item.combo.nombre_bundle,
+            price: item.combo.precio_descuento,
+            image: item.combo.url_imagen || "https://placehold.co/100",
+            restaurant: item.combo.local?.nombre_local || "Restaurante",
+            quantity: item.cantidad
+        }));
+
+        setCartItems(formattedItems);
+        // Actualizamos badge del navbar
+        window.dispatchEvent(new Event('cart-updated'));
+
+    } catch (err) {
+        console.error("Error cargando carrito:", err);
+        toast({ title: "Error", description: "No se pudo cargar tu carrito.", variant: "destructive" });
+    } finally {
+        setLoading(false);
+    }
   };
 
-  const handleQuantityChange = (id, amount) => {
-    const updatedCart = cartItems.map(item =>
-      item.id === id ? { ...item, quantity: Math.max(1, item.quantity + amount) } : item
-    );
-    updateCart(updatedCart);
+  useEffect(() => {
+      if(clientId) fetchCart();
+  }, [clientId]);
+
+
+  // 3. ACTUALIZAR CANTIDAD EN DB
+  const handleQuantityChange = async (cartItemId, currentQty, amount) => {
+    const newQty = currentQty + amount;
+    if (newQty < 1) return; // No permitir 0 o negativo
+
+    // Optimistic UI Update (Actualizar visualmente antes de la DB para que se sienta rápido)
+    setCartItems(prev => prev.map(item => 
+        item.cartItemId === cartItemId ? { ...item, quantity: newQty } : item
+    ));
+
+    try {
+        const { error } = await supabase
+            .from('carrito_item')
+            .update({ cantidad: newQty })
+            .eq('id_carrito_item', cartItemId);
+
+        if (error) throw error;
+        // No hace falta recargar todo, ya actualizamos el estado local
+    } catch (error) {
+        console.error("Error actualizando cantidad:", error);
+        toast({ title: "Error", description: "No se pudo actualizar la cantidad.", variant: "destructive" });
+        fetchCart(); // Revertir cambios si falla
+    }
   };
 
-  const handleRemoveItem = (id) => {
-    const updatedCart = cartItems.filter(item => item.id !== id);
-    updateCart(updatedCart);
-    toast({
-      title: "Eliminado",
-      description: "Producto removido del carrito.",
-    });
+  // 4. ELIMINAR ITEM DE LA DB
+  const handleRemoveItem = async (cartItemId) => {
+    try {
+        const { error } = await supabase
+            .from('carrito_item')
+            .delete()
+            .eq('id_carrito_item', cartItemId);
+
+        if (error) throw error;
+
+        setCartItems(prev => prev.filter(item => item.cartItemId !== cartItemId));
+        window.dispatchEvent(new Event('cart-updated'));
+        
+        toast({
+            title: "Eliminado",
+            description: "Producto removido del carrito.",
+        });
+    } catch (error) {
+        console.error("Error eliminando item:", error);
+        toast({ title: "Error", description: "No se pudo eliminar el producto.", variant: "destructive" });
+    }
   };
 
   // --- LÓGICA DE COMPRA REAL ---
   const handleCheckout = async () => {
-    if (!user) {
+    if (!user || !clientId) {
         toast({ title: "Error", description: "Debes iniciar sesión para comprar.", variant: "destructive" });
         navigate('/login');
         return;
     }
 
-    // Validación básica
     if (cartItems.length === 0) return;
 
     setIsProcessing(true);
 
     try {
-        // Obtenemos el ID numérico del cliente desde la tabla 'usuario'
-        // (Asumiendo que id_usuario es FK de id_cliente como vimos antes)
-        const { data: userData, error: userError } = await supabase
-            .from('usuario')
-            .select('id_usuario')
-            .eq('id_auth_supabase', user.id)
-            .single();
-
-        if (userError || !userData) throw new Error("No se pudo identificar al cliente.");
-        
-        const clienteId = userData.id_usuario;
-
-        // Preparamos las inserciones para la tabla 'compra'
-        // Como no hay tabla intermedia 'detalle_compra', creamos una compra por cada item distinto
-        // (O si compras 2 del mismo, creamos 1 registro pero no hay campo cantidad en 'compra', 
-        //  así que asumiremos que creamos N registros según la cantidad).
-        
+        // A. Preparar datos para tabla 'compra'
         const comprasToInsert = [];
         
+        // Expandimos items por cantidad (si compras 2 hamburguesas, son 2 registros de compra o lógica similar)
+        // Nota: Si prefieres 1 registro con cantidad, necesitarías un campo 'cantidad' en tabla 'compra'.
+        // Aquí mantengo tu lógica anterior de crear N registros.
         cartItems.forEach(item => {
             for(let i=0; i < item.quantity; i++) {
                 comprasToInsert.push({
-                    id_cliente: clienteId,
+                    id_cliente: clientId,
                     id_combo: item.id,
-                    fecha_compra: new Date().toISOString(), // Fecha actual
-                    estado: 'Pedido Realizado', // Estado inicial
-                    precio_unitario_pagado: item.discountPrice || item.price, // Precio al momento de comprar
-                    entregado: false // Default false
+                    fecha_compra: new Date().toISOString(),
+                    estado: 'Pedido Realizado',
+                    precio_unitario_pagado: item.price,
+                    entregado: false
                 });
             }
         });
 
-        // Insertar en Supabase
+        // B. Insertar en tabla 'compra'
         const { error: insertError } = await supabase
             .from('compra')
             .insert(comprasToInsert);
 
         if (insertError) throw insertError;
 
-        // Éxito
+        // C. LIMPIAR EL CARRITO EN LA DB (Borrar items de este cliente)
+        const { error: deleteError } = await supabase
+            .from('carrito_item')
+            .delete()
+            .eq('id_cliente', clientId);
+
+        if (deleteError) {
+            // Si falla el borrado pero la compra pasó, es un estado inconsistente menor
+            // (El usuario vería los items todavía en el carrito).
+            console.error("Error limpiando carrito tras compra:", deleteError);
+        }
+
+        // D. Éxito y Limpieza Local
+        setCartItems([]);
+        window.dispatchEvent(new Event('cart-updated'));
+
         toast({
             title: "¡Pedido Confirmado! 🎉",
             description: "Tu reserva ha sido guardada exitosamente.",
             className: "bg-green-50 border-green-200"
         });
 
-        // Limpiar carrito y redirigir
-        localStorage.removeItem('cart');
-        setCartItems([]);
-        
-        // Pequeño delay para que vea el toast
         setTimeout(() => {
             navigate('/dashboard/cliente/pedidos');
         }, 1500);
@@ -123,8 +214,12 @@ const ShoppingCart = () => {
     }
   };
 
-  const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const total = subtotal + 0.50; // Gastos gestión
+
+  if (loading && cartItems.length === 0) {
+      return <div className="min-h-screen flex justify-center items-center"><Loader2 className="animate-spin text-primary w-10 h-10"/></div>;
+  }
 
   return (
     <>
@@ -157,13 +252,13 @@ const ShoppingCart = () => {
                   <AnimatePresence>
                     {cartItems.map(item => (
                         <motion.div 
-                            key={item.id} 
+                            key={item.cartItemId} 
                             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                             className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center gap-4"
                         >
                         {/* Imagen */}
                         <img 
-                            src={item.image || "https://placehold.co/100"} 
+                            src={item.image} 
                             alt={item.name} 
                             className="w-full sm:w-24 h-24 rounded-lg object-cover" 
                         />
@@ -173,28 +268,32 @@ const ShoppingCart = () => {
                             <h3 className="font-bold text-gray-800 text-lg line-clamp-1">{item.name}</h3>
                             <p className="text-sm text-gray-500 mb-1">{item.restaurant}</p>
                             <div className="text-primary font-bold">
-                                ${(item.discountPrice || item.price).toFixed(2)}
+                                ${item.price.toFixed(2)}
                             </div>
                         </div>
 
                         {/* Controles Cantidad */}
                         <div className="flex items-center gap-3 bg-gray-50 p-1 rounded-lg">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white hover:shadow-sm" onClick={() => handleQuantityChange(item.id, -1)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white hover:shadow-sm" 
+                                onClick={() => handleQuantityChange(item.cartItemId, item.quantity, -1)}
+                            >
                                 <Minus className="h-3 w-3" />
                             </Button>
                             <span className="w-4 text-center font-bold text-gray-700">{item.quantity}</span>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white hover:shadow-sm" onClick={() => handleQuantityChange(item.id, 1)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white hover:shadow-sm" 
+                                onClick={() => handleQuantityChange(item.cartItemId, item.quantity, 1)}
+                            >
                                 <Plus className="h-3 w-3" />
                             </Button>
                         </div>
 
                         {/* Subtotal Item */}
                         <div className="font-bold text-gray-800 w-20 text-right hidden sm:block">
-                            ${((item.discountPrice || item.price) * item.quantity).toFixed(2)}
+                            ${(item.price * item.quantity).toFixed(2)}
                         </div>
 
                         {/* Eliminar */}
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50">
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.cartItemId)} className="text-gray-400 hover:text-red-500 hover:bg-red-50">
                             <Trash2 className="h-5 w-5" />
                         </Button>
                         </motion.div>
@@ -210,7 +309,7 @@ const ShoppingCart = () => {
                     {/* Lista de precios */}
                     <div className="space-y-3 mb-6 text-sm">
                       <div className="flex justify-between text-gray-600">
-                        <span>Subtotal ({cartItems.length} items)</span>
+                        <span>Subtotal ({cartItems.reduce((acc, i) => acc + i.quantity, 0)} items)</span>
                         <span>${subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-gray-600">
@@ -244,7 +343,7 @@ const ShoppingCart = () => {
                         </div>
                     </div>
 
-                    {/* Tarjeta Simulada (Solo visual si selecciona Tarjeta) */}
+                    {/* Tarjeta Simulada */}
                     {paymentMethod === 'card' && (
                         <div className="bg-gray-100 p-4 rounded-xl mb-6 flex items-center gap-3 border border-gray-200 opacity-80">
                             <div className="w-10 h-6 bg-gray-800 rounded flex items-center justify-center text-white text-[8px]">VISA</div>

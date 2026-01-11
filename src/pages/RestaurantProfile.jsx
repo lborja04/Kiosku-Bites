@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Heart, Star, ChevronLeft, Loader2, Phone } from 'lucide-react';
+import { MapPin, Clock, Heart, Star, ChevronLeft, Loader2, Phone, ExternalLink } from 'lucide-react'; // <--- Nuevo icono
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/services/supabaseAuthClient';
@@ -93,7 +93,7 @@ const RestaurantProfile = () => {
               await supabase.from('favoritos').insert({ 
                   id_local: id, 
                   id_cliente: clientId,
-                  fecha_agregado: new Date().toISOString() // Usamos Date para timestamp
+                  fecha_agregado: new Date().toISOString()
               });
               setIsFavorite(true);
               toast({ title: "¡Añadido a favoritos!", className: "bg-red-50 text-red-600 border-red-200" });
@@ -151,10 +151,25 @@ const RestaurantProfile = () => {
                                     <Clock className="w-4 h-4 mr-2 text-primary" />
                                     {local.horario || "Horario no definido"}
                                 </div>
-                                <div className="flex items-center bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-                                    <MapPin className="w-4 h-4 mr-2 text-primary" />
-                                    {local.ubicacion ? "Ver en mapa" : "Ubicación pendiente"}
-                                </div>
+                                
+                                {/* BOTÓN DE MAPA FUNCIONAL */}
+                                {local.ubicacion ? (
+                                    <a 
+                                        href={`https://www.google.com/maps?q=${local.ubicacion}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center bg-gray-50 px-3 py-1 rounded-full border border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors cursor-pointer"
+                                    >
+                                        <MapPin className="w-4 h-4 mr-2 text-primary" />
+                                        Ver en mapa <ExternalLink className="w-3 h-3 ml-1 opacity-50" />
+                                    </a>
+                                ) : (
+                                    <div className="flex items-center bg-gray-50 px-3 py-1 rounded-full border border-gray-200 opacity-50">
+                                        <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                                        Ubicación pendiente
+                                    </div>
+                                )}
+
                                 {local.telefono && (
                                     <div className="flex items-center bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
                                         <Phone className="w-4 h-4 mr-2 text-primary" />

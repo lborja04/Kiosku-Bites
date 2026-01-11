@@ -14,7 +14,12 @@ const ManageReviews = () => {
   
   // Filtros
   const [filter, setFilter] = useState('date_desc');
-  const [comboFilter, setComboFilter] = useState('all'); // Nuevo filtro por nombre de combo
+  const [comboFilter, setComboFilter] = useState('all');
+
+  // --- NUEVOS ESTADOS PARA MODAL DE REPORTE ---
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reviewToReport, setReviewToReport] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
 
   // --- 1. CARGAR RESEÑAS DESDE SUPABASE ---
   useEffect(() => {
@@ -82,6 +87,7 @@ const ManageReviews = () => {
   // --- 2. ACCIONES ---
   const handleAction = async (id, action) => {
     
+    // A. LÓGICA DE DESTACAR (Se mantiene igual)
     if (action === 'destacar') {
         const currentReview = reviews.find(r => r.id === id);
         const newState = !currentReview.isFeatured;
@@ -108,6 +114,7 @@ const ManageReviews = () => {
         }
     }
 
+    // B. LÓGICA DE REPORTAR (Ahora abre el modal)
     if (action === 'reportar') {
         const currentReview = reviews.find(r => r.id === id);
         
@@ -116,51 +123,63 @@ const ManageReviews = () => {
              return;
         }
 
-        const isConfirmed = window.confirm("¿Estás seguro de reportar este comentario? Esta acción alertará a los moderadores.");
-        
-        if (!isConfirmed) return;
-
-        setReviews(prev => prev.map(r => r.id === id ? { ...r, isReported: true } : r));
-
-        try {
-            const { error } = await supabase
-                .from('resena')
-                .update({ reportado: true })
-                .eq('id_resena', id);
-
-            if (error) throw error;
-
-            toast({ 
-                title: "Reporte Enviado", 
-                description: "Gracias por ayudarnos a mantener la comunidad segura.", 
-                variant: "destructive"
-            });
-
-        } catch (err) {
-            console.error("Error reportando:", err);
-            setReviews(prev => prev.map(r => r.id === id ? { ...r, isReported: false } : r));
-            toast({ title: "Error", description: "No se pudo enviar el reporte.", variant: "destructive" });
-        }
+        // En lugar de window.confirm, abrimos el modal
+        setReviewToReport(id);
+        setReportModalOpen(true);
     }
   };
 
-  // --- 3. OBTENER LISTA ÚNICA DE COMBOS PARA EL FILTRO ---
+  // --- 3. CONFIRMAR REPORTE (DB) ---
+  const confirmReport = async () => {
+      if (!reviewToReport) return;
+      
+      setIsReporting(true);
+      
+      // Actualización optimista
+      setReviews(prev => prev.map(r => r.id === reviewToReport ? { ...r, isReported: true } : r));
+
+      try {
+          const { error } = await supabase
+              .from('resena')
+              .update({ reportado: true })
+              .eq('id_resena', reviewToReport);
+
+          if (error) throw error;
+
+          toast({ 
+              title: "Reporte Enviado", 
+              description: "Gracias por ayudarnos a mantener la comunidad segura.", 
+              variant: "destructive" // Usamos destructive para indicar alerta/reporte
+          });
+
+          // Cerrar modal
+          setReportModalOpen(false);
+          setReviewToReport(null);
+
+      } catch (err) {
+          console.error("Error reportando:", err);
+          // Revertir si falla
+          setReviews(prev => prev.map(r => r.id === reviewToReport ? { ...r, isReported: false } : r));
+          toast({ title: "Error", description: "No se pudo enviar el reporte.", variant: "destructive" });
+      } finally {
+          setIsReporting(false);
+      }
+  };
+
+  // --- 4. OBTENER LISTA ÚNICA DE COMBOS PARA EL FILTRO ---
   const uniqueCombos = useMemo(() => {
-      // Extraemos los nombres de combos únicos de las reseñas cargadas
       const names = reviews.map(r => r.combo);
-      return [...new Set(names)]; // Set elimina duplicados
+      return [...new Set(names)]; 
   }, [reviews]);
 
-  // --- 4. ORDENAMIENTO Y FILTRADO ---
+  // --- 5. ORDENAMIENTO Y FILTRADO ---
   const processedReviews = useMemo(() => {
     let result = [...reviews];
 
-    // 1. Filtrar por Combo
     if (comboFilter !== 'all') {
         result = result.filter(r => r.combo === comboFilter);
     }
     
-    // 2. Ordenar por Criterio
     const compareFn = (a, b) => {
         switch(filter) {
             case 'rating_desc': return b.rating - a.rating;
@@ -170,7 +189,6 @@ const ManageReviews = () => {
         }
     };
     
-    // 3. Destacados primero
     const featured = result.filter(r => r.isFeatured).sort(compareFn);
     const regular = result.filter(r => !r.isFeatured).sort(compareFn);
 
@@ -250,7 +268,6 @@ const ManageReviews = () => {
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <span className="font-bold text-gray-900">{review.user}</span>
                                 <span className="text-gray-300">•</span>
-                                {/* CORRECCIÓN DE FECHA: Forzamos la zona horaria UTC para que no reste horas */}
                                 <span className="text-xs text-gray-500">
                                     {new Date(review.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
                                 </span>
@@ -313,6 +330,57 @@ const ManageReviews = () => {
             </div>
         )}
       </div>
+
+      {/* --- MODAL DE CONFIRMACIÓN DE REPORTE --- */}
+      <AnimatePresence>
+        {reportModalOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-100"
+                >
+                    <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
+                        <Flag className="w-6 h-6" />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                        ¿Reportar Comentario?
+                    </h3>
+                    
+                    <p className="text-gray-500 text-center text-sm mb-6">
+                        Esta acción alertará a los moderadores para que revisen si el contenido es inapropiado.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setReportModalOpen(false)}
+                            disabled={isReporting}
+                            className="w-full"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={confirmReport}
+                            disabled={isReporting}
+                            className="w-full bg-red-600 hover:bg-red-700"
+                        >
+                            {isReporting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
+                            Reportar
+                        </Button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

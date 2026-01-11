@@ -12,9 +12,13 @@ const Navbar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [dbName, setDbName] = useState(null);
+  
+  // NUEVO: Estado para el contador del carrito
+  const [cartCount, setCartCount] = useState(0);
 
   // Hook useEffect siempre debe estar aquí
   useEffect(() => {
+    // A. Lógica para obtener el nombre real
     const fetchRealName = async () => {
         if (!user || !user.id) return;
 
@@ -41,6 +45,54 @@ const Navbar = () => {
     fetchRealName();
   }, [user]);
 
+  // NUEVO: Hook para mantener actualizado el carrito
+  useEffect(() => {
+    const updateCartCount = async () => {
+        if (!user || user.type !== 'cliente') {
+            setCartCount(0);
+            return;
+        }
+
+        try {
+            // 1. Obtener el ID numérico del cliente
+            const { data: userData } = await supabase
+                .from('usuario')
+                .select('id_usuario')
+                .eq('id_auth_supabase', user.id)
+                .single();
+            
+            if (!userData) return;
+
+            // 2. Obtener los items del carrito para ese cliente
+            const { data: cartItems, error } = await supabase
+                .from('carrito_item')
+                .select('cantidad')
+                .eq('id_cliente', userData.id_usuario);
+
+            if (error) throw error;
+
+            // 3. Sumar las cantidades (ej: 2 hamburguesas + 1 soda = 3 items)
+            const total = cartItems?.reduce((acc, item) => acc + item.cantidad, 0) || 0;
+            setCartCount(total);
+
+        } catch (error) {
+            console.error("Error actualizando contador carrito:", error);
+        }
+    };
+
+    // Ejecutar al inicio
+    updateCartCount();
+
+    // Escuchar el evento personalizado que disparamos desde ComboDetail y ShoppingCart
+    window.addEventListener('cart-updated', updateCartCount);
+
+    // Limpieza
+    return () => {
+        window.removeEventListener('cart-updated', updateCartCount);
+    };
+  }, [user]);
+
+
   // Lógica de variables (siempre se ejecuta)
   const displayName = dbName || user?.user_metadata?.nombre || 'Usuario';
   const firstName = displayName.split(' ')[0]; 
@@ -59,18 +111,15 @@ const Navbar = () => {
 
   const navItems = (user && user.type === 'cliente') ? clientItems : landingItems;
 
-  // 2. AHORA SÍ, LA CONDICIÓN DE RETORNO (AL FINAL)
-  // Si es un Local en su dashboard, no renderizamos nada.
+  // 2. CONDICIÓN DE RETORNO (Si es panel local/admin no mostramos navbar)
   if ((user?.type === 'local' && location.pathname.startsWith('/dashboard/local')) ||
     location.pathname.startsWith('/admin')) {
-    
     return null; 
   }
 
   // 3. RETORNO NORMAL (JSX)
   return (
     <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-200 z-50 shadow-sm transition-all">
-      {/* ... (todo tu código JSX de la navbar igual que antes) ... */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
@@ -108,8 +157,23 @@ const Navbar = () => {
               <>
                 {user.type === 'cliente' && (
                   <Link to="/carrito">
-                    <Button variant="ghost" size="icon" className="relative hover:bg-orange-50 hover:text-orange-600">
+                    <Button variant="ghost" size="icon" className="relative hover:bg-orange-50 hover:text-orange-600 group">
                       <ShoppingCart className="w-5 h-5" />
+                      
+                      {/* --- BADGE DEL CARRITO --- */}
+                      <AnimatePresence>
+                        {cartCount > 0 && (
+                            <motion.span 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                                className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white"
+                            >
+                                {cartCount > 9 ? '9+' : cartCount}
+                            </motion.span>
+                        )}
+                      </AnimatePresence>
+
                     </Button>
                   </Link>
                 )}
@@ -120,11 +184,11 @@ const Navbar = () => {
                     </span>
                     
                     {user.type === 'cliente' && (
-                         <Link to="/dashboard/cliente">
+                          <Link to="/dashboard/cliente">
                             <Button variant="outline" size="sm" className="h-9 border-gray-200 hover:border-primary hover:text-primary">
                                 <User className="w-4 h-4 mr-2" /> Mi Perfil
                             </Button>
-                         </Link>
+                          </Link>
                     )}
 
                     <Button 
@@ -155,8 +219,12 @@ const Navbar = () => {
           </div>
 
           <div className="md:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
               {isOpen ? <X className="w-6 h-6 text-gray-800" /> : <Menu className="w-6 h-6 text-gray-800" />}
+              {/* Badge para móvil también si está cerrado el menú */}
+              {!isOpen && cartCount > 0 && (
+                  <span className="absolute top-1 right-1 bg-red-600 w-2.5 h-2.5 rounded-full border border-white"></span>
+              )}
             </Button>
           </div>
         </div>
@@ -194,18 +262,23 @@ const Navbar = () => {
                       </div>
                       
                       {user.type === 'cliente' && (
-                         <>
+                          <>
                              <Link to="/buscar-combos" onClick={() => setIsOpen(false)}>
                                 <Button variant="secondary" className="w-full justify-start h-12 text-base mb-2">
                                     <UtensilsCrossed className="w-5 h-5 mr-3" /> Explorar Comida
                                 </Button>
                              </Link>
                              <Link to="/carrito" onClick={() => setIsOpen(false)}>
-                                <Button variant="outline" className="w-full justify-start h-12 text-base">
+                                <Button variant="outline" className="w-full justify-start h-12 text-base relative">
                                     <ShoppingCart className="w-5 h-5 mr-3" /> Ver Carrito
+                                    {cartCount > 0 && (
+                                        <span className="ml-auto bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                            {cartCount} items
+                                        </span>
+                                    )}
                                 </Button>
                              </Link>
-                         </>
+                          </>
                       )}
                       
                       {user.type === 'local' && (

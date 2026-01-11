@@ -3,14 +3,14 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Store, MapPin, Clock, Phone, CheckCircle, XCircle, 
-    Loader2, AlertTriangle, Eye, FileText, ExternalLink // <--- Nuevo icono importado
+    Loader2, AlertTriangle, Eye, FileText, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/services/supabaseAuthClient';
 
 // --- MODAL DE DETALLES ---
-const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
+const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onRejectRequest }) => {
     if (!isOpen || !local) return null;
 
     return (
@@ -58,7 +58,6 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
                                     </div>
                                 </div>
                                 
-                                {/* --- AQUÍ ESTÁ EL CAMBIO DEL LINK A MAPS --- */}
                                 <div className="flex items-start gap-3">
                                     <MapPin className="w-5 h-5 text-indigo-500 mt-1" />
                                     <div>
@@ -75,7 +74,6 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
                                         ) : (
                                             <p className="text-sm text-gray-600">No especificada</p>
                                         )}
-                                        {/* Mostramos las coordenadas en pequeño por si acaso */}
                                         {local.ubicacion && (
                                             <p className="text-xs text-gray-400 mt-1 font-mono">{local.ubicacion}</p>
                                         )}
@@ -113,7 +111,7 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
 
                     {/* Footer Acciones */}
                     <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
-                        <Button variant="destructive" onClick={() => onReject(local.id_local)}>
+                        <Button variant="destructive" onClick={() => onRejectRequest(local)}>
                             <XCircle className="w-4 h-4 mr-2" /> Rechazar y Eliminar
                         </Button>
                         <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => onApprove(local.id_local)}>
@@ -132,6 +130,11 @@ const ManageLocals = () => {
     const [pendingLocals, setPendingLocals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedLocal, setSelectedLocal] = useState(null);
+
+    // NUEVOS ESTADOS PARA MODAL DE BORRADO
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [localToDelete, setLocalToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // 1. Cargar Locales Pendientes
     const fetchPendingLocals = async () => {
@@ -187,15 +190,25 @@ const ManageLocals = () => {
         }
     };
 
-    // 3. Acción: Rechazar (Eliminar)
-    const handleReject = async (id) => {
-        if (!window.confirm("¿Estás seguro? Esto eliminará el perfil del local permanentemente.")) return;
+    // 3A. Solicitar Rechazo (Abrir Modal)
+    const handleRejectRequest = (local) => {
+        // Cerramos el modal de detalle primero si está abierto
+        setSelectedLocal(null);
+        // Abrimos el de confirmación
+        setLocalToDelete(local);
+        setDeleteModalOpen(true);
+    };
+
+    // 3B. Confirmar Rechazo (Eliminar Realmente)
+    const confirmReject = async () => {
+        if (!localToDelete) return;
+        setIsDeleting(true);
 
         try {
             const { data, error } = await supabase
                 .from('local')
                 .delete()
-                .eq('id_local', id)
+                .eq('id_local', localToDelete.id_local)
                 .select();
 
             if (error) throw error;
@@ -205,12 +218,17 @@ const ManageLocals = () => {
             }
 
             toast({ title: "Solicitud Rechazada", description: "El perfil del local ha sido eliminado." });
-            setPendingLocals(prev => prev.filter(l => l.id_local !== id));
-            setSelectedLocal(null);
+            setPendingLocals(prev => prev.filter(l => l.id_local !== localToDelete.id_local));
+            
+            // Cerrar modal y limpiar
+            setDeleteModalOpen(false);
+            setLocalToDelete(null);
 
         } catch (err) {
             console.error(err);
             toast({ title: "Error", description: err.message, variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -218,14 +236,65 @@ const ManageLocals = () => {
         <div className="space-y-6">
             <Helmet><title>Aprobar Locales - Admin</title></Helmet>
 
-            {/* Modal */}
+            {/* Modal de Detalles */}
             <LocalDetailModal 
                 local={selectedLocal} 
                 isOpen={!!selectedLocal} 
                 onClose={() => setSelectedLocal(null)}
                 onApprove={handleApprove}
-                onReject={handleReject}
+                onRejectRequest={handleRejectRequest} // Pasamos la función que abre el otro modal
             />
+
+            {/* --- MODAL DE CONFIRMACIÓN DE RECHAZO --- */}
+            <AnimatePresence>
+                {deleteModalOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-100"
+                        >
+                            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                ¿Rechazar y Eliminar Local?
+                            </h3>
+                            
+                            <p className="text-gray-500 text-center text-sm mb-6 px-4">
+                                Estás a punto de eliminar permanentemente a <strong className="text-gray-800">{localToDelete?.nombre_local}</strong>. Esta acción es irreversible.
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setDeleteModalOpen(false)}
+                                    disabled={isDeleting}
+                                    className="w-full"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button 
+                                    variant="destructive" 
+                                    onClick={confirmReject}
+                                    disabled={isDeleting}
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                >
+                                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
+                                    Eliminar Definitivamente
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="flex justify-between items-center">
                 <div>

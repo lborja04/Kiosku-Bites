@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Briefcase, Mail, Lock, UserPlus, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Briefcase, Mail, Lock, UserPlus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signUpWithSupabase } from '../services/supabaseAuthClient';
 
@@ -64,7 +64,7 @@ const RegisterPage = () => {
   // Estado para el Popup
   const [modalState, setModalState] = useState({
     isOpen: false,
-    type: 'success', // 'success' | 'error'
+    type: 'success', 
     title: '',
     message: ''
   });
@@ -75,7 +75,6 @@ const RegisterPage = () => {
 
   const closeModal = () => {
     setModalState({ ...modalState, isOpen: false });
-    // Si fue éxito, redirigir al login al cerrar
     if (modalState.type === 'success') {
       navigate('/login', { replace: true });
     }
@@ -85,16 +84,15 @@ const RegisterPage = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { email, password } = formData;
+    const { email, password, confirmPassword } = formData;
     
-    // 1. Validación simple de campos vacíos
+    // 1. Validación de campos vacíos
     let isValid = false;
-    let missingFieldMessage = "Por favor completa todos los campos requeridos.";
 
     if (accountType === 'cliente') {
-        isValid = email && password && formData.nombre;
+        isValid = email && password && confirmPassword && formData.nombre;
     } else {
-        isValid = email && password && formData.nombreLocal && formData.dueno;
+        isValid = email && password && confirmPassword && formData.nombreLocal && formData.dueno;
     }
 
     if (!isValid) {
@@ -102,10 +100,22 @@ const RegisterPage = () => {
         isOpen: true,
         type: 'error',
         title: 'Faltan datos',
-        message: missingFieldMessage
+        message: "Por favor completa todos los campos requeridos."
       });
       setIsLoading(false);
       return;
+    }
+
+    // 2. Validación de coincidencia de contraseñas
+    if (password !== confirmPassword) {
+        setModalState({
+            isOpen: true,
+            type: 'error',
+            title: 'Las contraseñas no coinciden',
+            message: "Por favor verifica que hayas escrito la misma contraseña en ambos campos."
+        });
+        setIsLoading(false);
+        return;
     }
 
     const nombreDisplay = accountType === 'local' ? formData.nombreLocal : formData.nombre;
@@ -137,8 +147,6 @@ const RegisterPage = () => {
     } catch (error) {
       console.error("Error en registro:", error);
       
-      // CAMBIO AQUÍ: Usamos directamente el mensaje que viene del error
-      // ya que tu servicio 'signUpWithSupabase' ya lo devuelve en español.
       setModalState({
         isOpen: true,
         type: 'error',
@@ -178,14 +186,35 @@ const RegisterPage = () => {
               />
             </div>
           </div>
+          
+          {/* Contraseña Cliente */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                name="password" type="password" required onChange={handleChange}
+                name="password" 
+                type="password" 
+                required 
+                onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all"
                 placeholder="********"
+              />
+            </div>
+          </div>
+
+          {/* Confirmar Contraseña Cliente */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                name="confirmPassword" 
+                type="password" 
+                required 
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all"
+                placeholder="Repite tu contraseña"
               />
             </div>
           </div>
@@ -193,7 +222,7 @@ const RegisterPage = () => {
       );
     }
 
-    // FORMULARIO LOCAL (Sin ubicación ni teléfono)
+    // FORMULARIO LOCAL
     if (accountType === 'local') {
       return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -230,14 +259,35 @@ const RegisterPage = () => {
               />
             </div>
           </div>
+          
+          {/* Contraseña Local */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                name="password" type="password" required onChange={handleChange}
+                name="password" 
+                type="password" 
+                required 
+                onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all"
                 placeholder="********"
+              />
+            </div>
+          </div>
+
+          {/* Confirmar Contraseña Local */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                name="confirmPassword" 
+                type="password" 
+                required 
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all"
+                placeholder="Repite tu contraseña"
               />
             </div>
           </div>
