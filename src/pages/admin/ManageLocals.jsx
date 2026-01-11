@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Store, MapPin, Clock, Phone, CheckCircle, XCircle, 
-    Loader2, AlertTriangle, Eye, FileText 
+    Loader2, AlertTriangle, Eye, FileText, ExternalLink // <--- Nuevo icono importado
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -45,7 +45,7 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
                         <p className="text-sm text-gray-500 mb-6 flex items-center">
                             ID: {local.id_local} 
                             <span className="mx-2">•</span> 
-                            Registrado el: {new Date().toLocaleDateString()} {/* Si tienes fecha_creacion, úsala aquí */}
+                            Registrado el: {new Date().toLocaleDateString()}
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -57,14 +57,32 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
                                         <p className="text-sm text-gray-600">{local.descripcion || "Sin descripción"}</p>
                                     </div>
                                 </div>
+                                
+                                {/* --- AQUÍ ESTÁ EL CAMBIO DEL LINK A MAPS --- */}
                                 <div className="flex items-start gap-3">
                                     <MapPin className="w-5 h-5 text-indigo-500 mt-1" />
                                     <div>
                                         <p className="font-semibold text-sm text-gray-700">Ubicación</p>
-                                        <p className="text-sm text-gray-600">{local.ubicacion || "No especificada"}</p>
+                                        {local.ubicacion ? (
+                                            <a 
+                                                href={`https://www.google.com/maps/search/?api=1&query=${local.ubicacion}`}
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-1 font-medium"
+                                            >
+                                                Ver en Google Maps <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        ) : (
+                                            <p className="text-sm text-gray-600">No especificada</p>
+                                        )}
+                                        {/* Mostramos las coordenadas en pequeño por si acaso */}
+                                        {local.ubicacion && (
+                                            <p className="text-xs text-gray-400 mt-1 font-mono">{local.ubicacion}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
+
                             <div className="space-y-4">
                                 <div className="flex items-start gap-3">
                                     <Clock className="w-5 h-5 text-indigo-500 mt-1" />
@@ -83,7 +101,7 @@ const LocalDetailModal = ({ local, isOpen, onClose, onApprove, onReject }) => {
                             </div>
                         </div>
 
-                        {/* Info del Usuario Asociado (Opcional, requiere join) */}
+                        {/* Info del Usuario Asociado */}
                         {local.usuario && (
                             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                                 <p className="text-xs font-bold text-gray-500 uppercase mb-1">Cuenta de Usuario Asociada</p>
@@ -116,66 +134,11 @@ const ManageLocals = () => {
     const [selectedLocal, setSelectedLocal] = useState(null);
 
     // 1. Cargar Locales Pendientes
-    // 1. Cargar Locales Pendientes
     const fetchPendingLocals = async () => {
         try {
             setLoading(true);
             
-            // CORRECCIÓN: Usamos 'usuario!local_id_local_fkey' para ser explícitos// 2. Acción: Aprobar
-    const handleApprove = async (id) => {
-        try {
-            // Agregamos .select() para confirmar que el cambio se hizo
-            const { data, error } = await supabase
-                .from('local')
-                .update({ aprobado: true })
-                .eq('id_local', id)
-                .select(); 
-
-            if (error) throw error;
-
-            // Verificación Extra: Si data está vacío, es culpa de los permisos (RLS)
-            if (data.length === 0) {
-                throw new Error("No se pudo actualizar. Verifica los permisos de administrador en la base de datos (RLS).");
-            }
-
-            toast({ title: "Local Aprobado", description: "El local ya puede publicar combos.", className: "bg-green-50 border-green-200" });
-            setPendingLocals(prev => prev.filter(l => l.id_local !== id));
-            setSelectedLocal(null);
-
-        } catch (err) {
-            console.error(err);
-            toast({ title: "Error", description: err.message, variant: "destructive" });
-        }
-    };
-
-    // 3. Acción: Rechazar (Eliminar)
-    const handleReject = async (id) => {
-        if (!window.confirm("¿Estás seguro? Esto eliminará el perfil del local permanentemente.")) return;
-
-        try {
-            // Agregamos .select() aquí también
-            const { data, error } = await supabase
-                .from('local')
-                .delete()
-                .eq('id_local', id)
-                .select();
-
-            if (error) throw error;
-
-            if (data.length === 0) {
-                throw new Error("No se pudo eliminar. Verifica los permisos de administrador (RLS).");
-            }
-
-            toast({ title: "Solicitud Rechazada", description: "El perfil del local ha sido eliminado." });
-            setPendingLocals(prev => prev.filter(l => l.id_local !== id));
-            setSelectedLocal(null);
-
-        } catch (err) {
-            console.error(err);
-            toast({ title: "Error", description: err.message, variant: "destructive" });
-        }
-    };
-            // Esto le dice a Supabase: "Usa la llave foránea 'local_id_local_fkey' para unir con la tabla usuario"
+            // Usamos la relación explícita para evitar errores de multiples foreign keys
             const { data, error } = await supabase
                 .from('local')
                 .select(`
@@ -189,7 +152,6 @@ const ManageLocals = () => {
 
         } catch (err) {
             console.error("Error cargando locales:", err);
-            // Mostramos el mensaje real del error para depurar si sigue fallando
             toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
             setLoading(false);
@@ -201,10 +163,8 @@ const ManageLocals = () => {
     }, []);
 
     // 2. Acción: Aprobar
-    // 2. Acción: Aprobar
     const handleApprove = async (id) => {
         try {
-            // Agregamos .select() para confirmar que el cambio se hizo
             const { data, error } = await supabase
                 .from('local')
                 .update({ aprobado: true })
@@ -213,9 +173,8 @@ const ManageLocals = () => {
 
             if (error) throw error;
 
-            // Verificación Extra: Si data está vacío, es culpa de los permisos (RLS)
             if (data.length === 0) {
-                throw new Error("No se pudo actualizar. Verifica los permisos de administrador en la base de datos (RLS).");
+                throw new Error("No se pudo actualizar. Verifica permisos RLS.");
             }
 
             toast({ title: "Local Aprobado", description: "El local ya puede publicar combos.", className: "bg-green-50 border-green-200" });
@@ -233,7 +192,6 @@ const ManageLocals = () => {
         if (!window.confirm("¿Estás seguro? Esto eliminará el perfil del local permanentemente.")) return;
 
         try {
-            // Agregamos .select() aquí también
             const { data, error } = await supabase
                 .from('local')
                 .delete()
@@ -243,7 +201,7 @@ const ManageLocals = () => {
             if (error) throw error;
 
             if (data.length === 0) {
-                throw new Error("No se pudo eliminar. Verifica los permisos de administrador (RLS).");
+                throw new Error("No se pudo eliminar. Verifica permisos RLS.");
             }
 
             toast({ title: "Solicitud Rechazada", description: "El perfil del local ha sido eliminado." });
