@@ -5,13 +5,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-/**
- * Registra un usuario usando Supabase Auth y guarda datos adicionales en la tabla `usuario`.
- * @param {string} email
- * @param {string} password
- * @param {string} nombre
- * @param {string} tipo_usuario
- */
 export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario = 'cliente', extra = {} }) => {
   try {
     // --- 1) Prevenir duplicados: comprobar si ya existe un usuario en la tabla `usuario` ---
@@ -110,9 +103,6 @@ export const signUpWithSupabase = async ({ email, password, nombre, tipo_usuario
   }
 };
 
-/**
- * Inicia sesión con email y password usando Supabase Auth.
- */
 export const signInWithSupabase = async ({ email, password }) => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -126,9 +116,6 @@ export const signInWithSupabase = async ({ email, password }) => {
   }
 };
 
-/**
- * Cierra sesión en Supabase
- */
 export const signOutSupabase = async () => {
   try {
     const { error } = await supabase.auth.signOut();
@@ -168,11 +155,7 @@ export const updateReview = async (reviewId, updates, userDbId) => {
   }
 };
 
-/**
- * Elimina una reseña comprobando que el autor coincida con `userDbId`.
- * @param {number} reviewId
- * @param {number} userDbId
- */
+
 export const deleteReview = async (reviewId, userDbId) => {
   try {
     const { data: existing, error: fetchErr } = await supabase
@@ -192,6 +175,36 @@ export const deleteReview = async (reviewId, userDbId) => {
 
     if (error) throw error;
     return true;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchOrdersForLocal = async (localId) => {
+  try {
+    const { data, error } = await supabase
+      .from('compra')
+      .select(`
+        id_compra,
+        id_cliente,
+        fecha_compra,
+        estado,
+        precio_unitario_pagado,
+        entregado,
+        combo:id_combo!inner ( 
+            nombre_bundle,
+            url_imagen,
+            id_local
+        ),
+        cliente:id_cliente (
+          usuario ( nombre, email )
+        )
+      `)
+      .eq('combo.id_local', localId)
+      .order('fecha_compra', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   } catch (err) {
     throw err;
   }

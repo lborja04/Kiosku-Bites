@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/services/supabaseAuthClient';
+import { supabase, fetchOrdersForLocal } from '@/services/supabaseAuthClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 // --- COMPONENTE MODAL DE CONFIRMACIÓN ---
@@ -92,28 +92,8 @@ const ManageOrders = () => {
       if (!userData) return;
       const localId = userData.id_usuario;
 
-      const { data, error } = await supabase
-        .from('compra')
-        .select(`
-            id_compra,
-            fecha_compra,
-            estado,
-            precio_unitario_pagado,
-            entregado,
-            combo:id_combo!inner ( 
-                nombre_bundle,
-                url_imagen,
-                id_local
-            ),
-            cliente:id_cliente (
-                usuario ( nombre, email )
-            )
-        `)
-        .eq('combo.id_local', localId)
-        .order('fecha_compra', { ascending: false });
-
-      if (error) throw error;
-
+      // Use centralized helper that includes cliente.usuario.telefono and top-level id_cliente
+      const data = await fetchOrdersForLocal(localId);
       setOrders(data || []);
 
     } catch (err) {
@@ -282,6 +262,12 @@ const ManageOrders = () => {
                                         </div>
                                         <div className="flex items-center text-sm text-gray-500 gap-4 flex-wrap">
                                             <span className="flex items-center"><User className="w-3 h-3 mr-1"/> {order.cliente?.usuario?.nombre || 'Cliente'}</span>
+                                            {order.cliente?.usuario?.email && (
+                                                <span className="text-sm text-gray-400">• <a href={`mailto:${order.cliente.usuario.email}`} className="underline">{order.cliente.usuario.email}</a></span>
+                                            )}
+                                            {order.cliente?.usuario?.telefono && (
+                                                <span className="text-sm text-gray-400">• <a href={`tel:${order.cliente.usuario.telefono}`} className="underline">{order.cliente.usuario.telefono}</a></span>
+                                            )}
                                             {/* AQUÍ SE MUESTRA LA HORA Y FECHA CORRECTA */}
                                             <span className="flex items-center">
                                                 <Clock className="w-3 h-3 mr-1"/> 
@@ -290,7 +276,7 @@ const ManageOrders = () => {
                                                 })}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-1 font-mono">ID: #{order.id_compra}</p>
+                                        <p className="text-xs text-gray-400 mt-1 font-mono">ID pedido: #{order.id_compra}</p>
                                     </div>
                                 </div>
 
