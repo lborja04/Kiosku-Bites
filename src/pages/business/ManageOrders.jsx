@@ -20,6 +20,12 @@ import { toast } from '@/components/ui/use-toast';
 import { supabase, fetchOrdersForLocal } from '@/services/supabaseAuthClient';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Helper: truncate text safely
+const truncate = (str, n = 120) => {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n).trim() + '...' : str;
+};
+
 // --- COMPONENTE MODAL DE CONFIRMACIÓN ---
 const ConfirmModal = ({ isOpen, onClose, onConfirm, orderId }) => {
     if (!isOpen) return null;
@@ -260,6 +266,10 @@ const ManageOrders = () => {
                                             <h3 className="font-bold text-lg text-gray-800">{order.combo.nombre_bundle}</h3>
                                             {getStatusBadge(order.estado)}
                                         </div>
+                                        {/* Descripción corta del combo (para historial) */}
+                                        {order.combo.descripcion && (
+                                            <p className="text-sm text-gray-600 mt-1 max-w-xl">{truncate(order.combo.descripcion, 140)}</p>
+                                        )}
                                         <div className="flex items-center text-sm text-gray-500 gap-4 flex-wrap">
                                             <span className="flex items-center"><User className="w-3 h-3 mr-1"/> {order.cliente?.usuario?.nombre || 'Cliente'}</span>
                                             {order.cliente?.usuario?.email && (
@@ -276,7 +286,6 @@ const ManageOrders = () => {
                                                 })}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-1 font-mono">ID pedido: #{order.id_compra}</p>
                                     </div>
                                 </div>
 

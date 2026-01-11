@@ -192,9 +192,14 @@ export const fetchOrdersForLocal = async (localId) => {
         precio_unitario_pagado,
         entregado,
         combo:id_combo!inner ( 
-            nombre_bundle,
-            url_imagen,
-            id_local
+          id_combo,
+          nombre_bundle,
+          url_imagen,
+          descripcion,
+          precio,
+          precio_descuento,
+          incluye,
+          id_local
         ),
         cliente:id_cliente (
           usuario ( nombre, email )
