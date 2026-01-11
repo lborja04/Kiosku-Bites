@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- 1. IMPORTAR ESTO
 import { supabase } from '../../services/supabaseAuthClient';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,6 @@ const LocationPickerMap = ({ onLocationSelect, initialPosition }) => {
             },
         });
         
-        // Centrar mapa si ya hay coordenadas (aunque en este caso casi siempre será default)
         useEffect(() => {
             if (initialPosition) {
                 map.setView(initialPosition, 15);
@@ -63,12 +63,10 @@ const LocationPickerMap = ({ onLocationSelect, initialPosition }) => {
 const generateTimeOptions = () => {
     const options = [];
     const periods = ['AM', 'PM'];
-    // Generar horas desde 6 AM hasta 11 PM (ajustable)
     for (let i = 0; i < 24; i++) {
         const hour = i % 12 === 0 ? 12 : i % 12;
         const period = i < 12 ? 'AM' : 'PM';
         
-        // Solo mostrar horas "razonables" (ej: de 6am a 11pm) para no llenar la lista
         if (i >= 6 && i <= 23) { 
             options.push(`${hour}:00 ${period}`);
             options.push(`${hour}:30 ${period}`);
@@ -81,12 +79,14 @@ const timeOptions = generateTimeOptions();
 
 // --- COMPONENTE PRINCIPAL ---
 const LocalDetailsForm = ({ userId, onComplete }) => {
+    const navigate = useNavigate(); // <--- 2. INICIALIZAR HOOK DE NAVEGACIÓN
+
     // Campos del formulario
     const [nombre_local, setNombreLocal] = useState('');
     const [descripcion, setDescripcion] = useState('');
     const [telefono, setTelefono] = useState('');
     
-    // Estados para el horario (separados)
+    // Estados para el horario
     const [horaInicio, setHoraInicio] = useState('4:00 PM');
     const [horaFin, setHoraFin] = useState('8:00 PM');
 
@@ -117,7 +117,6 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
 
             try {
                 setLoading(true);
-                // Solo traemos el nombre, asumimos que el resto está vacío porque es el primer login
                 const { data, error } = await supabase
                     .from('local')
                     .select('nombre_local')
@@ -131,7 +130,6 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                 }
             } catch (err) {
                 console.error('Error fetching name:', err);
-                // No bloqueamos la UI si falla el nombre, el usuario puede escribirlo
             } finally {
                 setLoading(false);
             }
@@ -145,7 +143,6 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
         setSubmitting(true);
         setError(null);
 
-        // Validaciones básicas
         if (!nombre_local?.trim() || !descripcion?.trim() || !telefono?.trim() || !latitud || !longitud) {
             setError('Por favor complete todos los campos y seleccione su ubicación en el mapa.');
             toast({ title: "Faltan datos", variant: "destructive" });
@@ -153,12 +150,8 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
             return;
         }
 
-        // --- LIMPIEZA DEL TELÉFONO ---
-        // Esto transforma "099 123 4567" -> "0991234567"
-        // Elimina espacios, guiones, paréntesis, etc. Solo deja números.
         const telefonoLimpio = telefono.replace(/[^0-9]/g, '');
 
-        // Validación extra: En Ecuador los celulares suelen tener 10 dígitos
         if (telefonoLimpio.length < 9) { 
              setError('El número de teléfono parece incorrecto (muy corto).');
              setSubmitting(false);
@@ -173,9 +166,11 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                 id_local: userId,
                 nombre_local: nombre_local.trim(),
                 descripcion: descripcion.trim(),
-                telefono: telefonoLimpio, // ¡Enviamos el limpio!
+                telefono: telefonoLimpio,
                 ubicacion: ubicacionString,
-                horario: horarioString 
+                horario: horarioString,
+                // Aseguramos que siga como no aprobado por si acaso
+                aprobado: false 
             };
 
             const { error: upsertError } = await supabase
@@ -184,23 +179,32 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
 
             if (upsertError) throw upsertError;
 
+            // --- 3. LÓGICA DE CIERRE DE SESIÓN ---
             toast({
-                title: "¡Perfil completado!",
-                description: "Tus datos han sido guardados exitosamente.",
-                className: "bg-green-50 border-green-200"
+                title: "Solicitud Enviada",
+                description: "Tus datos han sido guardados. Debes esperar la aprobación del administrador.",
+                className: "bg-blue-50 border-blue-200"
             });
-            onComplete();
+
+            // Pequeña espera para que el usuario lea el toast
+            setTimeout(async () => {
+                await supabase.auth.signOut(); // Cerrar sesión en Supabase
+                
+                // Si tienes una función onComplete, la llamamos (opcional)
+                if (onComplete) onComplete(); 
+                
+                // Redirigir al login
+                navigate('/login', { replace: true });
+            }, 2000);
 
         } catch (err) {
             console.error('Error saving:', err);
-            // Manejo específico si la BD sigue rechazando el formato
             if (err.code === '23514') {
-                setError(`Por favor usa el formato correcto para el teléfono "${telefonoLimpio}". Ej.: 0991234567`);
+                setError(`Por favor usa el formato correcto para el teléfono. Ej.: 0991234567`);
             } else {
                 setError('Error al guardar: ' + err.message);
             }
-        } finally {
-            setSubmitting(false);
+            setSubmitting(false); // Solo quitamos submitting si hubo error
         }
     };
 
@@ -249,7 +253,7 @@ const LocalDetailsForm = ({ userId, onComplete }) => {
                                     onChange={(e) => setTelefono(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                     placeholder="0991234567"
-                                    maxLength={10} // Ayuda visual para no escribir de más
+                                    maxLength={10}
                                     required
                                 />
                             </div>
