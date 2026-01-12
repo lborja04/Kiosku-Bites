@@ -1,0 +1,27 @@
+services:
+  # Servicio para desarrollo (Hot Reload)
+  kiosku-dev:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev -- --host 
+    # En desarrollo no necesitamos args porque el volumen monta el .env
+    env_file:
+      - .env 
+
+  # Servicio de Producción
+  kiosku-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # --- NUEVO: Pasamos los argumentos aquí ---
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+    ports:
+      - "8080:80"
+    restart: always
