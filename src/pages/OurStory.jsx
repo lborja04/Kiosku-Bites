@@ -143,7 +143,7 @@ const OurStory = () => {
                   <h3 className="text-2xl font-bold text-gray-900">Nuestra Visión</h3>
                 </div>
                 <p className="text-gray-600 text-lg">
-                  Ser la plataforma líder en España para la reducción del desperdicio alimentario, 
+                  Ser la plataforma líder en Ecuador para la reducción del desperdicio alimentario, 
                   creando un futuro más sostenible donde cada comida tenga valor y cada persona 
                   pueda acceder a alimentación de calidad.
                 </p>
