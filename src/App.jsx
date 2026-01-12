@@ -18,6 +18,7 @@ import ShoppingCart from '@/pages/ShoppingCart';
 import RestaurantProfile from '@/pages/RestaurantProfile';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/AdminLogin'; // <--- 1. IMPORTAR NUEVO LOGIN
+import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -73,7 +74,7 @@ function AppContent() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/admin-login" element={<AdminLogin />} /> {/* <--- 3. NUEVA RUTA ADMIN */}
-            
+            <Route path="/actualizar-contrasena" element={<UpdatePasswordPage />} />
             <Route path="/local/:id" element={<RestaurantProfile />} />
             
             <Route path="/carrito" element={

@@ -214,3 +214,17 @@ export const fetchOrdersForLocal = async (localId) => {
     throw err;
   }
 };
+
+export const sendPasswordResetEmail = async (email) => {
+  try {
+    // redirectTo: Es la URL a la que llegará el usuario tras dar clic en el correo.
+    // Lo enviamos al home ('/') donde, si está logueado, podrá ir a su perfil a cambiar la clave.
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/actualizar-contrasena', 
+    });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    throw err;
+  }
+};

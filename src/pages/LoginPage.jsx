@@ -2,35 +2,109 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-// IMPORTANTE: Agregamos 'supabase' a la importación para consultar la DB
-import { signInWithSupabase, supabase } from '../services/supabaseAuthClient';
+// ASEGÚRATE DE HABER ACTUALIZADO supabaseAuthClient.js CON LA FUNCIÓN sendPasswordResetEmail
+import { signInWithSupabase, supabase, sendPasswordResetEmail } from '../services/supabaseAuthClient';
 
-// --- COMPONENTE POPUP (MODAL) ---
-const StatusModal = ({ isOpen, onClose, title, message }) => {
-  if (!isOpen) return null;
+// --- COMPONENTE POPUP (MODAL DE ESTADO) CORREGIDO ---
+const StatusModal = ({ isOpen, onClose, title, message, isSuccess }) => {
   return (
     <AnimatePresence>
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      >
+      {isOpen && (
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
-          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         >
-          <div className="p-6 flex flex-col items-center text-center bg-red-50">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          >
+            <div className={`p-6 flex flex-col items-center text-center ${isSuccess ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isSuccess ? 'bg-green-100' : 'bg-red-100'}`}>
+                {isSuccess ? <CheckCircle2 className="w-8 h-8 text-green-600" /> : <AlertCircle className="w-8 h-8 text-red-600" />}
+              </div>
+              <h3 className={`text-2xl font-bold mb-2 ${isSuccess ? 'text-green-800' : 'text-red-800'}`}>{title}</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+              <Button onClick={onClose} className={`w-full py-6 text-lg ${isSuccess ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
+                {isSuccess ? 'Genial' : 'Entendido'}
+              </Button>
             </div>
-            <h3 className="text-2xl font-bold mb-2 text-red-800">{title}</h3>
-            <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
-            <Button onClick={onClose} className="w-full py-6 text-lg bg-red-600 hover:bg-red-700">Entendido</Button>
-          </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// --- COMPONENTE POPUP (OLVIDÉ CONTRASEÑA) CORREGIDO ---
+const ForgotPasswordModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(email);
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          >
+            <div className="p-6 bg-white relative">
+              {/* Botón X para cerrar */}
+              <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                ✕
+              </button>
+
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <KeyRound className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">Recuperar Contraseña</h3>
+                <p className="text-gray-500 mt-2">Ingresa tu correo y te enviaremos un enlace mágico para restablecer tu acceso.</p>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Correo electrónico</label>
+                  <input 
+                    type="email" 
+                    required 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none" 
+                    placeholder="tu@email.com" 
+                  />
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <Button type="button" variant="outline" onClick={onClose} className="flex-1 py-6">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isLoading} className="flex-1 py-6 btn-gradient text-white">
+                    {isLoading ? <Loader2 className="animate-spin" /> : 'Enviar Enlace'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };
@@ -42,7 +116,11 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   
-  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
+  // Estado para modales
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', isSuccess: false });
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
   const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
   const handleSubmit = async (e) => {
@@ -50,39 +128,28 @@ const LoginPage = () => {
     setLoading(true);
 
     if (!email || !password) {
-      setModalState({ isOpen: true, title: "Campos vacíos", message: "Por favor, introduce tu correo y contraseña." });
+      setModalState({ isOpen: true, title: "Campos vacíos", message: "Por favor, introduce tu correo y contraseña.", isSuccess: false });
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Llamada a Supabase (Valida email y contraseña)
       const { auth } = await signInWithSupabase({ email, password });
 
-      // 2. VERIFICACIÓN DE SEGURIDAD: Consultar el rol real en la base de datos
       const { data: dbUser, error: dbError } = await supabase
         .from('usuario')
         .select('tipo_usuario, nombre')
         .eq('id_auth_supabase', auth.user.id)
         .single();
 
-      // Si hay error en la consulta o el usuario no existe en la tabla pública
-      if (dbError || !dbUser) {
-         throw new Error("Error verificando datos de usuario.");
-      }
+      if (dbError || !dbUser) throw new Error("Error verificando datos de usuario.");
 
-      // --- AQUÍ ESTÁ EL BLOQUEO DE ADMIN ---
       if (dbUser.tipo_usuario === 'admin') {
-          // Cerramos la sesión inmediatamente para expulsarlo
           await supabase.auth.signOut();
-          // Lanzamos un error específico para que lo capture el catch de abajo
           throw new Error("ADMIN_RESTRICTED");
       }
 
-      // 3. Si no es admin, continuamos con el flujo normal
-      // Usamos el tipo real de la base de datos por seguridad
       const tipo = dbUser.tipo_usuario;
-      
       const payload = {
         id: auth.user.id,
         email: auth.user.email,
@@ -93,7 +160,6 @@ const LoginPage = () => {
       
       login(payload);
 
-      // 4. Redirección
       if (tipo === 'cliente') navigate('/dashboard/cliente', { replace: true });
       else if (tipo === 'local') navigate('/dashboard/local', { replace: true });
       else navigate('/', { replace: true });
@@ -104,30 +170,67 @@ const LoginPage = () => {
       let friendlyMessage = error.message;
       const msg = error.message?.toLowerCase() || "";
 
-      // Manejo de errores específicos
       if (msg.includes("invalid login")) {
         errorTitle = "Credenciales incorrectas";
         friendlyMessage = "El correo o la contraseña no coinciden.";
       } else if (msg.includes("email not confirmed")) {
         errorTitle = "Cuenta no verificada";
         friendlyMessage = "Por favor verifica tu correo electrónico antes de entrar.";
-      } 
-      // Mensaje especial para el Admin bloqueado
-      else if (error.message === "ADMIN_RESTRICTED") {
+      } else if (error.message === "ADMIN_RESTRICTED") {
         errorTitle = "Acceso Restringido";
         friendlyMessage = "Esta área de ingreso es exclusiva para Clientes y Locales. Los administradores no tienen acceso por aquí.";
       }
 
-      setModalState({ isOpen: true, title: errorTitle, message: friendlyMessage });
+      setModalState({ isOpen: true, title: errorTitle, message: friendlyMessage, isSuccess: false });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (resetEmail) => {
+    if (!resetEmail) return;
+    setResetLoading(true);
+    try {
+      if (typeof sendPasswordResetEmail !== 'function') {
+        throw new Error("La función de reset no está configurada correctamente en el sistema.");
+      }
+      
+      await sendPasswordResetEmail(resetEmail);
+      setForgotModalOpen(false); // Cierra el modal de input
+      
+      // Abre modal de éxito
+      setModalState({
+        isOpen: true,
+        title: "¡Correo enviado!",
+        message: "Hemos enviado un enlace a tu correo. Revisa tu bandeja de entrada (y spam) para restablecer tu contraseña.",
+        isSuccess: true
+      });
+    } catch (error) {
+      console.error("Reset error:", error);
+      alert("Error: " + (error.message || "No se pudo enviar el correo."));
+    } finally {
+      setResetLoading(false);
     }
   };
 
   return (
     <>
       <Helmet><title>Iniciar Sesión - KIOSKU BITES</title></Helmet>
-      <StatusModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} message={modalState.message} />
+      
+      <StatusModal 
+        isOpen={modalState.isOpen} 
+        onClose={closeModal} 
+        title={modalState.title} 
+        message={modalState.message} 
+        isSuccess={modalState.isSuccess} 
+      />
+
+      <ForgotPasswordModal 
+        isOpen={forgotModalOpen} 
+        onClose={() => setForgotModalOpen(false)} 
+        onSubmit={handleResetPassword}
+        isLoading={resetLoading}
+      />
 
       <div className="min-h-screen flex bg-gray-50 font-sans">
         {/* Imagen Lateral */}
@@ -176,9 +279,13 @@ const LoginPage = () => {
               </div>
 
               <div className="flex justify-end">
-                <Link to="/recuperar-contrasena" className="text-sm font-bold text-primary hover:underline hover:text-[#1f3a5e]">
+                <button 
+                  type="button" 
+                  onClick={() => setForgotModalOpen(true)}
+                  className="text-sm font-bold text-primary hover:underline hover:text-[#1f3a5e] focus:outline-none"
+                >
                   ¿Olvidaste tu contraseña?
-                </Link>
+                </button>
               </div>
 
               <Button type="submit" disabled={loading} className="flex w-full justify-center btn-gradient py-6 text-lg shadow-md hover:shadow-xl transition-all disabled:opacity-70">
