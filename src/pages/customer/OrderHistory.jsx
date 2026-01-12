@@ -12,6 +12,7 @@ const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [addingToCart, setAddingToCart] = useState(null); // ID del pedido que se está añadiendo
   const { user } = useAuth();
 
   // --- 1. CARGAR PEDIDOS DESDE SUPABASE ---
@@ -31,7 +32,7 @@ const OrderHistory = () => {
 
         if (!userData) return;
 
-        // B. Obtener Compras con Relaciones (Combo -> Local)
+        // B. Obtener Compras
         const { data, error } = await supabase
             .from('compra')
             .select(`
@@ -72,23 +73,17 @@ const OrderHistory = () => {
   }, [user]);
 
   // --- HELPERS ---
-
-  // Generar link de Google Maps
   const getMapLink = (coords) => {
       if (!coords) return '#';
       const [lat, lng] = coords.split(',');
       return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   };
 
-  // Determinar instrucciones según el estado
   const getInstructions = (status, isDelivered) => {
       if (isDelivered || status === 'Pedido Terminado') {
           return { text: "Pedido entregado y disfrutado.", color: "text-gray-500", icon: <CheckCircle className="w-4 h-4 mr-1"/> };
       }
       
-      // Lógica de Negocio:
-      // "Pedido Pagado" -> Asumimos Tarjeta/Online
-      // "Pedido Realizado" -> Asumimos Efectivo (Pendiente de pago en local)
       if (status === 'Pedido Pagado') {
           return { 
               text: "✅ ¡Pagado! Acércate directamente al mostrador a retirar.", 
@@ -118,34 +113,69 @@ const OrderHistory = () => {
       }
   };
 
-  // --- REPETIR PEDIDO (Añadir al carrito local) ---
-  const handleRepeatOrder = (order) => {
-    const cartItem = {
-        id: order.combo.id_combo,
-        name: order.combo.nombre_bundle,
-        price: order.precio_unitario_pagado, // Usamos el precio que pagó (o podrías buscar el actual)
-        image: order.combo.url_imagen,
-        restaurant: order.combo.local?.nombre_local,
-        quantity: 1
-    };
+  // --- REPETIR PEDIDO (Lógica DB Corregida) ---
+  const handleRepeatOrder = async (order) => {
+    if (!user) return;
+    setAddingToCart(order.id_compra);
 
-    const currentCart = JSON.parse(localStorage.getItem('cart')) || [];
-    // Verificar si ya está
-    const existing = currentCart.find(i => i.id === cartItem.id);
-    
-    let newCart;
-    if (existing) {
-        newCart = currentCart.map(i => i.id === cartItem.id ? {...i, quantity: i.quantity + 1} : i);
-    } else {
-        newCart = [...currentCart, cartItem];
+    try {
+        // 1. Obtener ID Cliente
+        const { data: userData } = await supabase
+            .from('usuario')
+            .select('id_usuario')
+            .eq('id_auth_supabase', user.id)
+            .single();
+
+        if (!userData) throw new Error("Usuario no identificado");
+        const clientId = userData.id_usuario;
+        const comboId = order.combo.id_combo;
+
+        // 2. Verificar si ya existe en el carrito
+        const { data: existingItem, error: fetchError } = await supabase
+            .from('carrito_item')
+            .select('id_carrito_item, cantidad')
+            .eq('id_cliente', clientId)
+            .eq('id_combo', comboId)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (existingItem) {
+            // A. ACTUALIZAR CANTIDAD (+1)
+            const { error: updateError } = await supabase
+                .from('carrito_item')
+                .update({ cantidad: existingItem.cantidad + 1 })
+                .eq('id_carrito_item', existingItem.id_carrito_item);
+            
+            if (updateError) throw updateError;
+        } else {
+            // B. INSERTAR NUEVO
+            const { error: insertError } = await supabase
+                .from('carrito_item')
+                .insert({
+                    id_cliente: clientId,
+                    id_combo: comboId,
+                    cantidad: 1
+                });
+
+            if (insertError) throw insertError;
+        }
+
+        // 3. Notificar y Actualizar Navbar
+        window.dispatchEvent(new Event('cart-updated'));
+        
+        toast({
+            title: "¡Añadido al carrito!",
+            description: "Puedes finalizar tu compra ahora.",
+            className: "bg-green-50 border-green-200"
+        });
+
+    } catch (error) {
+        console.error("Error adding to cart:", error);
+        toast({ title: "Error", description: "No se pudo añadir al carrito.", variant: "destructive" });
+    } finally {
+        setAddingToCart(null);
     }
-
-    localStorage.setItem('cart', JSON.stringify(newCart));
-    toast({
-      title: "¡Al carrito!",
-      description: "Hemos añadido este combo para que lo pidas de nuevo.",
-      className: "bg-green-50 border-green-200"
-    });
   };
 
   // --- FILTRADO ---
@@ -249,7 +279,6 @@ const OrderHistory = () => {
                         <div>
                             <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Instrucciones de Retiro</h3>
                             
-                            {/* Caja de Estado/Instrucción */}
                             <div className={`p-4 rounded-xl border mb-4 flex items-start gap-3 ${instructions.bg || 'bg-white'} border-gray-200`}>
                                 {instructions.icon || <AlertCircle className={`w-5 h-5 mt-0.5 ${instructions.color}`} />}
                                 <div>
@@ -294,8 +323,15 @@ const OrderHistory = () => {
                     {/* Footer Acciones */}
                     <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-white">
                         <div className="text-xs text-gray-400">ID Pedido: #{order.id_compra}</div>
-                        <Button variant="outline" size="sm" onClick={() => handleRepeatOrder(order)} className="text-primary border-primary/20 hover:bg-primary/5">
-                            <Repeat className="mr-2 h-3 w-3" /> Pedir de nuevo
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleRepeatOrder(order)} 
+                            disabled={addingToCart === order.id_compra}
+                            className="text-primary border-primary/20 hover:bg-primary/5"
+                        >
+                            {addingToCart === order.id_compra ? <Loader2 className="animate-spin w-3 h-3 mr-2"/> : <Repeat className="mr-2 h-3 w-3" />}
+                            Pedir de nuevo
                         </Button>
                     </div>
                   </motion.div>
