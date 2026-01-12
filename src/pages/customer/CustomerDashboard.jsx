@@ -47,7 +47,7 @@ const BlockedSessionModal = ({ isOpen, onLogout }) => {
     );
 };
 
-// --- DASHBOARD ---
+// --- DASHBOARD RESPONSIVE ---
 const CustomerDashboard = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -56,7 +56,6 @@ const CustomerDashboard = () => {
   const [loadingName, setLoadingName] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
 
-  // 1. CARGA DE DATOS
   useEffect(() => {
     const fetchUserData = async () => {
         if (!user || !user.id) return;
@@ -82,7 +81,6 @@ const CustomerDashboard = () => {
     fetchUserData();
   }, [user]);
 
-  // 2. REALTIME BLOCKING
   useEffect(() => {
       if (!user?.id) return;
       const channel = supabase
@@ -109,11 +107,14 @@ const CustomerDashboard = () => {
 
       <BlockedSessionModal isOpen={isBlocked} onLogout={logout} />
       
-      {/* Contenedor Principal */}
+      {/* Contenedor Principal Global */}
       <div className={`min-h-screen bg-gray-50 pt-16 transition-all ${isBlocked ? 'blur-sm pointer-events-none' : ''}`}>
         
-        {/* 1. SIDEBAR (PC) */}
+        {/* ==============================================
+            1. SIDEBAR FIJO (Solo visible en PC 'md:flex')
+           ============================================== */}
         <aside className="hidden md:flex w-72 bg-white border-r border-gray-200 flex-col fixed left-0 top-16 h-[calc(100vh-4rem)] z-10 overflow-y-auto">
+            {/* Perfil Header */}
             <div className="p-8 border-b border-gray-100 flex flex-col items-center text-center">
                 <div className="w-20 h-20 bg-gradient-to-tr from-primary to-orange-400 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg mb-4">
                     {loadingName ? '...' : firstName.charAt(0).toUpperCase()}
@@ -124,6 +125,7 @@ const CustomerDashboard = () => {
                 <span className="text-sm text-gray-500 mt-1">Cliente Kiosku</span>
             </div>
 
+            {/* Links */}
             <nav className="flex-grow p-4 space-y-2">
                 {navLinks.map((link) => {
                     const isActive = location.pathname === `/dashboard/cliente/${link.to}` || (link.to === '' && location.pathname === '/dashboard/cliente');
@@ -158,17 +160,15 @@ const CustomerDashboard = () => {
             </div>
         </aside>
 
-        {/* ========================================================================
-            2. ÁREA DE CONTENIDO PRINCIPAL (CORREGIDA)
-            ========================================================================
-        */}
-        {/* Capa Externa: Se encarga SOLO del margen izquierdo para respetar el sidebar */}
-        <div className="flex-1 md:ml-72 w-full">
+        {/* ==============================================
+            2. CONTENEDOR DE CONTENIDO (Layout Híbrido)
+           ============================================== */}
+        {/* CORRECCIÓN AQUÍ: Quitamos 'w-full' y dejamos que el div ocupe el espacio natural */}
+        <div className="md:ml-72 transition-all duration-300">
             
-            {/* Capa Interna: Se encarga de CENTRAR el contenido y dar padding */}
             <div className="max-w-6xl mx-auto p-4 sm:p-8">
                 
-                {/* --- HEADER Y TABS (SOLO MÓVIL) --- */}
+                {/* Header Móvil (Tabs) - Solo visible en 'md:hidden' */}
                 <div className="md:hidden mb-8">
                     <div className="flex justify-between items-center mb-6">
                         <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ const CustomerDashboard = () => {
                     </div>
                 </div>
 
-                {/* --- RENDERIZADO DE RUTAS --- */}
+                {/* Contenido de Rutas (Común para ambos) */}
                 <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
