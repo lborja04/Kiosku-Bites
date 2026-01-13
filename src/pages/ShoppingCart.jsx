@@ -2,30 +2,105 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard, Banknote, CheckCircle, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart as ShoppingCartIcon, CreditCard, Banknote, CheckCircle, Loader2, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/services/supabaseAuthClient';
 
+// --- MODAL DE ALERTA DE DISPONIBILIDAD ---
+const AvailabilityAlertModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <AnimatePresence>
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden p-6 text-center"
+                >
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <XCircle className="w-8 h-8 text-red-600" />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        Carrito Actualizado
+                    </h3>
+                    
+                    <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                        Lo sentimos, algunos productos de tu carrito <strong>ya no están disponibles</strong> (se agotaron o el local cerró) y han sido removidos automáticamente.
+                    </p>
+                    
+                    <p className="text-xs text-gray-400 mb-6">
+                        Por favor revisa tu nuevo total antes de confirmar.
+                    </p>
+
+                    <Button onClick={onClose} className="w-full btn-gradient py-6 text-lg">
+                        Entendido, revisar carrito
+                    </Button>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
 const ShoppingCart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'cash'
+  const [paymentMethod, setPaymentMethod] = useState('card'); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientId, setClientId] = useState(null);
+  
+  // ESTADO PARA EL POPUP DE ALERTA
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // 1. OBTENER ID CLIENTE (Vinculación Auth -> DB)
+  // --- HELPER DE VALIDACIÓN DE HORARIO ---
+  const checkTimeWindow = (scheduleString) => {
+    if (!scheduleString) return true; 
+    try {
+        const cleanSchedule = scheduleString.toLowerCase().replace(/\s+/g, ''); 
+        const parts = cleanSchedule.split(/[-–a]+/); 
+        if (parts.length < 2) return true;
+
+        const getMinutes = (timeStr) => {
+            let [time, modifier] = timeStr.split(/(am|pm)/);
+            let [h, m] = time.split(':').map(Number);
+            if (!m) m = 0; 
+            if (modifier === 'pm' && h < 12) h += 12;
+            if (modifier === 'am' && h === 12) h = 0;
+            return h * 60 + m;
+        };
+
+        const startMinutes = getMinutes(parts[0]);
+        const endMinutes = getMinutes(parts[1]);
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        if (endMinutes < startMinutes) {
+            return (currentMinutes >= startMinutes || currentMinutes <= endMinutes);
+        } else {
+            return (currentMinutes >= startMinutes && currentMinutes <= endMinutes);
+        }
+    } catch (e) { return true; }
+  };
+
+  // 1. OBTENER ID CLIENTE
   useEffect(() => {
     const fetchClientId = async () => {
         if(user) {
-            // Asumiendo la relación id_auth_supabase -> id_usuario -> id_cliente
             const { data, error } = await supabase
                 .from('usuario')
-                .select('id_usuario') // En tu esquema id_usuario es FK de cliente
+                .select('id_usuario')
                 .eq('id_auth_supabase', user.id)
                 .single();
             
@@ -37,12 +112,11 @@ const ShoppingCart = () => {
     fetchClientId();
   }, [user]);
 
-  // 2. CARGAR CARRITO DESDE LA DB
+  // 2. CARGAR CARRITO
   const fetchCart = async () => {
     if (!clientId) return;
     try {
         setLoading(true);
-        // Hacemos JOIN: carrito_item -> combo -> local
         const { data, error } = await supabase
             .from('carrito_item')
             .select(`
@@ -61,10 +135,9 @@ const ShoppingCart = () => {
 
         if (error) throw error;
 
-        // Formateamos para que la UI lo entienda fácil
         const formattedItems = data.map(item => ({
-            cartItemId: item.id_carrito_item, // ID de la fila en carrito
-            id: item.combo.id_combo,          // ID del producto
+            cartItemId: item.id_carrito_item,
+            id: item.combo.id_combo,
             name: item.combo.nombre_bundle,
             price: item.combo.precio_descuento,
             image: item.combo.url_imagen || "https://placehold.co/100",
@@ -73,12 +146,10 @@ const ShoppingCart = () => {
         }));
 
         setCartItems(formattedItems);
-        // Actualizamos badge del navbar
         window.dispatchEvent(new Event('cart-updated'));
 
     } catch (err) {
         console.error("Error cargando carrito:", err);
-        toast({ title: "Error", description: "No se pudo cargar tu carrito.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
@@ -89,12 +160,11 @@ const ShoppingCart = () => {
   }, [clientId]);
 
 
-  // 3. ACTUALIZAR CANTIDAD EN DB
+  // 3. ACTUALIZAR CANTIDAD
   const handleQuantityChange = async (cartItemId, currentQty, amount) => {
     const newQty = currentQty + amount;
-    if (newQty < 1) return; // No permitir 0 o negativo
+    if (newQty < 1) return;
 
-    // Optimistic UI Update (Actualizar visualmente antes de la DB para que se sienta rápido)
     setCartItems(prev => prev.map(item => 
         item.cartItemId === cartItemId ? { ...item, quantity: newQty } : item
     ));
@@ -106,15 +176,13 @@ const ShoppingCart = () => {
             .eq('id_carrito_item', cartItemId);
 
         if (error) throw error;
-        // No hace falta recargar todo, ya actualizamos el estado local
     } catch (error) {
         console.error("Error actualizando cantidad:", error);
-        toast({ title: "Error", description: "No se pudo actualizar la cantidad.", variant: "destructive" });
-        fetchCart(); // Revertir cambios si falla
+        fetchCart(); 
     }
   };
 
-  // 4. ELIMINAR ITEM DE LA DB
+  // 4. ELIMINAR ITEM
   const handleRemoveItem = async (cartItemId) => {
     try {
         const { error } = await supabase
@@ -127,17 +195,14 @@ const ShoppingCart = () => {
         setCartItems(prev => prev.filter(item => item.cartItemId !== cartItemId));
         window.dispatchEvent(new Event('cart-updated'));
         
-        toast({
-            title: "Eliminado",
-            description: "Producto removido del carrito.",
-        });
+        toast({ title: "Eliminado", description: "Producto removido del carrito." });
     } catch (error) {
         console.error("Error eliminando item:", error);
-        toast({ title: "Error", description: "No se pudo eliminar el producto.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
     }
   };
 
-  // --- LÓGICA DE COMPRA REAL ---
+  // --- LÓGICA DE COMPRA MEJORADA CON POPUP ---
   const handleCheckout = async () => {
     if (!user || !clientId) {
         toast({ title: "Error", description: "Debes iniciar sesión para comprar.", variant: "destructive" });
@@ -150,12 +215,57 @@ const ShoppingCart = () => {
     setIsProcessing(true);
 
     try {
-        // A. Preparar datos para tabla 'compra'
+        // --- PASO 0: VERIFICACIÓN Y LIMPIEZA AUTOMÁTICA ---
+        const { data: validationData, error: valError } = await supabase
+            .from('carrito_item')
+            .select(`
+                id_carrito_item,
+                combo:id_combo (
+                    nombre_bundle,
+                    estadisponible,
+                    local:local!fk_combo_local (
+                        nombre_local,
+                        horario
+                    )
+                )
+            `)
+            .eq('id_cliente', clientId);
+
+        if (valError) throw valError;
+
+        const itemsToRemove = [];
+
+        // Detectar items inválidos
+        for (const item of validationData) {
+            const isAvailable = item.combo.estadisponible;
+            const isTimeOk = checkTimeWindow(item.combo.local?.horario);
+
+            if (!isAvailable || !isTimeOk) {
+                itemsToRemove.push(item.id_carrito_item);
+            }
+        }
+
+        // SI HAY ITEMS INVÁLIDOS:
+        if (itemsToRemove.length > 0) {
+            // 1. Borrar de la DB
+            const { error: removeError } = await supabase
+                .from('carrito_item')
+                .delete()
+                .in('id_carrito_item', itemsToRemove);
+
+            if (removeError) throw removeError;
+
+            // 2. Actualizar UI
+            await fetchCart(); 
+
+            // 3. ABRIR EL POPUP DE ALERTA Y DETENER
+            setIsAvailabilityModalOpen(true);
+            setIsProcessing(false);
+            return; // DETENEMOS AQUÍ
+        }
+
+        // --- PASO 1: INSERTAR COMPRA (Si todo está bien) ---
         const comprasToInsert = [];
-        
-        // Expandimos items por cantidad (si compras 2 hamburguesas, son 2 registros de compra o lógica similar)
-        // Nota: Si prefieres 1 registro con cantidad, necesitarías un campo 'cantidad' en tabla 'compra'.
-        // Aquí mantengo tu lógica anterior de crear N registros.
         cartItems.forEach(item => {
             for(let i=0; i < item.quantity; i++) {
                 comprasToInsert.push({
@@ -169,26 +279,21 @@ const ShoppingCart = () => {
             }
         });
 
-        // B. Insertar en tabla 'compra'
         const { error: insertError } = await supabase
             .from('compra')
             .insert(comprasToInsert);
 
         if (insertError) throw insertError;
 
-        // C. LIMPIAR EL CARRITO EN LA DB (Borrar items de este cliente)
+        // --- PASO 2: LIMPIAR CARRITO ---
         const { error: deleteError } = await supabase
             .from('carrito_item')
             .delete()
             .eq('id_cliente', clientId);
 
-        if (deleteError) {
-            // Si falla el borrado pero la compra pasó, es un estado inconsistente menor
-            // (El usuario vería los items todavía en el carrito).
-            console.error("Error limpiando carrito tras compra:", deleteError);
-        }
+        if (deleteError) console.error("Error cleaning cart:", deleteError);
 
-        // D. Éxito y Limpieza Local
+        // --- PASO 3: FINALIZAR ---
         setCartItems([]);
         window.dispatchEvent(new Event('cart-updated'));
 
@@ -205,8 +310,8 @@ const ShoppingCart = () => {
     } catch (error) {
         console.error("Error en checkout:", error);
         toast({
-            title: "Error al procesar",
-            description: error.message || "Hubo un problema al guardar tu pedido.",
+            title: "No se pudo completar",
+            description: "Ocurrió un error inesperado.",
             variant: "destructive"
         });
     } finally {
@@ -215,7 +320,7 @@ const ShoppingCart = () => {
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const total = subtotal + 0.50; // Gastos gestión
+  const total = subtotal + 0.50; 
 
   if (loading && cartItems.length === 0) {
       return <div className="min-h-screen flex justify-center items-center"><Loader2 className="animate-spin text-primary w-10 h-10"/></div>;
@@ -227,6 +332,12 @@ const ShoppingCart = () => {
         <title>Carrito de Compras - KIOSKU BITES</title>
       </Helmet>
       
+      {/* MODAL DE ALERTA */}
+      <AvailabilityAlertModal 
+        isOpen={isAvailabilityModalOpen} 
+        onClose={() => setIsAvailabilityModalOpen(false)} 
+      />
+
       <div className="min-h-screen bg-gray-50 pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>

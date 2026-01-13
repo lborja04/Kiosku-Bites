@@ -13,28 +13,28 @@ const ComboDetail = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Estados Principales
+  // Estados
   const [combo, setCombo] = useState(null);
   const [otherCombos, setOtherCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState(null);
-  const [isTimeValid, setIsTimeValid] = useState(true); 
+  
+  // ESTADO DE DISPONIBILIDAD
+  const [isAvailable, setIsAvailable] = useState(true); 
+  const [availabilityReason, setAvailabilityReason] = useState(""); // Para debugging visual si quieres
+  
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // Estados de Reseñas
+  // Estados de Reseñas y Modales
   const [reviews, setReviews] = useState([]);
   const [sortOption, setSortOption] = useState('date_desc'); 
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editedRating, setEditedRating] = useState(5);
   const [editedComment, setEditedComment] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-
-  // --- NUEVOS ESTADOS PARA EL MODAL DE BORRADO ---
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Estados del Formulario
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
@@ -54,51 +54,64 @@ const ComboDetail = () => {
     fetchClientId();
   }, [user]);
 
-  // FUNCIÓN HELPER: Verifica si la hora actual está dentro del rango
-  const checkAvailability = (scheduleString) => {
-    if (!scheduleString) return true; 
+  // --- FUNCIÓN DE TIEMPO ROBUSTA (Soporta 24h y AM/PM) ---
+  const checkTimeWindow = (scheduleString) => {
+    if (!scheduleString) return { available: true, reason: "Sin horario definido" };
     
     try {
-        const parts = scheduleString.split('-');
-        if (parts.length < 2) return true; 
-
-        const endTimeString = parts[1].trim(); 
+        // Normalizamos el string (quitar espacios extra, minúsculas)
+        const cleanSchedule = scheduleString.toLowerCase().replace(/\s+/g, ''); // "18:00-23:00" o "6:00pm-11:00pm"
         
-        const parseTime = (str) => {
-            const lowerStr = str.toLowerCase();
-            const isPM = lowerStr.includes('pm');
-            const isAM = lowerStr.includes('am');
-            
-            const numbers = lowerStr.replace(/[^0-9:]/g, '');
-            const timeParts = numbers.split(':');
-            
-            let h = Number(timeParts[0]);
-            let m = Number(timeParts[1]) || 0; 
+        // Separamos inicio y fin por el guion "-"
+        // Soporta guiones cortos, largos o "a"
+        const parts = cleanSchedule.split(/[-–a]+/); 
+        
+        if (parts.length < 2) return { available: true, reason: "Formato de horario no reconocido (Abierto)" };
 
-            if (isNaN(h)) return null; 
+        // Helper para convertir hora texto a minutos desde medianoche (0 - 1439)
+        const getMinutes = (timeStr) => {
+            let [time, modifier] = timeStr.split(/(am|pm)/);
+            let [h, m] = time.split(':').map(Number);
+            if (!m) m = 0; // Si no hay minutos, es 0
 
-            if (isPM && h < 12) h += 12;
-            if (isAM && h === 12) h = 0;
+            // Ajuste 12h a 24h
+            if (modifier === 'pm' && h < 12) h += 12;
+            if (modifier === 'am' && h === 12) h = 0;
             
-            return { h, m };
+            return h * 60 + m;
         };
 
-        const parsedEnd = parseTime(endTimeString);
-        if (!parsedEnd) return true; 
-
+        const startMinutes = getMinutes(parts[0]);
+        const endMinutes = getMinutes(parts[1]);
+        
         const now = new Date();
-        const endDate = new Date();
-        endDate.setHours(parsedEnd.h, parsedEnd.m, 0, 0);
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-        if (parsedEnd.h < 6 && now.getHours() > 18) {
-             endDate.setDate(endDate.getDate() + 1); 
+        console.log(`🕒 Validación Horario:
+          Texto: "${scheduleString}"
+          Inicio: ${startMinutes} min (${Math.floor(startMinutes/60)}:${startMinutes%60})
+          Fin: ${endMinutes} min (${Math.floor(endMinutes/60)}:${endMinutes%60})
+          Actual: ${currentMinutes} min (${now.getHours()}:${now.getMinutes()})
+        `);
+
+        // Caso especial: Horario cruza medianoche (ej: 22:00 - 02:00)
+        if (endMinutes < startMinutes) {
+            // Está abierto si es mayor al inicio (noche) O menor al fin (madrugada)
+            if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+                return { available: true, reason: "Dentro de horario (Noche)" };
+            }
+        } else {
+            // Horario normal (ej: 18:00 - 22:00)
+            if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                return { available: true, reason: "Dentro de horario" };
+            }
         }
 
-        return now <= endDate;
+        return { available: false, reason: "Fuera de rango horario" };
 
     } catch (e) {
-        console.warn("Error validando horario:", e);
-        return true; 
+        console.warn("Error parseando horario:", e);
+        return { available: true, reason: "Error de formato (Abierto por defecto)" };
     }
   };
 
@@ -116,9 +129,23 @@ const ComboDetail = () => {
 
         if (comboError) throw comboError;
 
+        // --- VALIDACIÓN DISPONIBILIDAD ---
         const horario = comboData.local?.horario || "";
-        const available = checkAvailability(horario);
-        setIsTimeValid(available);
+        const timeCheck = checkTimeWindow(horario);
+        
+        // La disponibilidad final depende de 2 cosas:
+        // 1. El check de "Disponible" en la base de datos (comboData.estadisponible)
+        // 2. Que estemos dentro del horario del local
+        const finalAvailability = comboData.estadisponible && timeCheck.available;
+
+        console.log("📊 Estado Final:", {
+            enBD: comboData.estadisponible,
+            horarioCheck: timeCheck,
+            resultado: finalAvailability
+        });
+
+        setIsAvailable(finalAvailability);
+        // ---------------------------------
 
         const { data: reviewsData, error: reviewsError } = await supabase
             .from('resena')
@@ -208,7 +235,6 @@ const ComboDetail = () => {
 
   const sortedReviews = useMemo(() => {
       if (!reviews.length) return [];
-      
       const compareFn = (a, b) => {
           switch(sortOption) {
               case 'date_desc': return new Date(b.date) - new Date(a.date);
@@ -218,10 +244,8 @@ const ComboDetail = () => {
               default: return 0;
           }
       };
-
       const featured = reviews.filter(r => r.isFeatured).sort(compareFn);
       const regular = reviews.filter(r => !r.isFeatured).sort(compareFn);
-
       return [...featured, ...regular];
   }, [reviews, sortOption]);
 
@@ -232,8 +256,8 @@ const ComboDetail = () => {
   };
 
   const handleAddToCart = async () => {
-    if (!isTimeValid) {
-        toast({ title: "Horario finalizado", description: "Lo sentimos, el horario de recogida ha terminado por hoy.", variant: "destructive" });
+    if (!isAvailable) {
+        toast({ title: "No disponible", description: "Este combo no se puede pedir en este momento.", variant: "destructive" });
         return;
     }
 
@@ -299,7 +323,6 @@ const ComboDetail = () => {
           toast({ title: "Solo clientes", description: "Las cuentas de local no pueden dejar reseñas.", variant: "secondary" });
           return;
       }
-
       try {
         const { data, error } = await supabase
             .from('compra')
@@ -313,16 +336,10 @@ const ComboDetail = () => {
         if (error) throw error;
 
         if (!data) {
-            toast({ 
-                title: "Compra requerida", 
-                description: "Para garantizar la veracidad, solo puedes opinar si has comprado este combo.", 
-                variant: "destructive" 
-            });
+            toast({ title: "Compra requerida", description: "Para garantizar la veracidad, solo puedes opinar si has comprado este combo.", variant: "destructive" });
             return;
         }
-
         setShowReviewForm(true);
-
       } catch (err) {
           console.error("Error verificando compra:", err);
           toast({ title: "Error", description: "No pudimos verificar tu historial de compras.", variant: "destructive" });
@@ -332,12 +349,10 @@ const ComboDetail = () => {
   const handleSubmitReview = async (e) => {
       e.preventDefault();
       if(!clientId || !combo.id) return;
-
       if(newReview.comment.trim().length < 5) {
           toast({ title: "Comentario muy corto", description: "Por favor escribe un poco más.", variant: "destructive" });
           return;
       }
-
       setIsSubmittingReview(true);
       try {
           const { error } = await supabase.from('resena').insert({
@@ -347,14 +362,11 @@ const ComboDetail = () => {
               comentario: newReview.comment.trim(),
               fecha_resena: new Date().toISOString().split('T')[0]
           });
-
           if (error) throw error;
-
           toast({ title: "¡Reseña enviada!", description: "Gracias por compartir tu experiencia.", className: "bg-green-50" });
           setNewReview({ rating: 5, comment: '' });
           setShowReviewForm(false);
           setRefreshTrigger(prev => prev + 1);
-
       } catch (error) {
           console.error("Error submitting review:", error);
           toast({ title: "Error", description: "No se pudo enviar la reseña.", variant: "destructive" });
@@ -391,30 +403,21 @@ const ComboDetail = () => {
     }
   };
 
-  // --- NUEVA LÓGICA DE BORRADO ---
-
-  // 1. Solo abre el modal
   const openDeleteModal = (reviewId) => {
     setReviewToDelete(reviewId);
     setDeleteModalOpen(true);
   };
 
-  // 2. Ejecuta el borrado real
   const confirmDelete = async () => {
     if (!user || !user.db_id || !reviewToDelete) return;
-    
     setIsDeleting(true);
     try {
       await deleteReview(reviewToDelete, user.db_id);
       setReviews(prev => prev.filter(r => r.id !== reviewToDelete));
       setCombo(prev => prev ? { ...prev, reviewsCount: Math.max(0, (prev.reviewsCount || 1) - 1) } : prev);
-      
       toast({ title: 'Reseña eliminada', description: 'Tu reseña fue borrada correctamente.', className: 'bg-green-50' });
-      
-      // Cerrar modal
       setDeleteModalOpen(false);
       setReviewToDelete(null);
-
     } catch (err) {
       console.error('Error eliminando reseña:', err);
       toast({ title: 'Error', description: err.message || 'No se pudo eliminar la reseña.', variant: 'destructive' });
@@ -422,7 +425,6 @@ const ComboDetail = () => {
       setIsDeleting(false);
     }
   };
-
 
   if (loading) return <div className="min-h-screen flex justify-center items-center"><Loader2 className="animate-spin w-10 h-10 text-primary"/></div>;
   if (!combo) return <div className="min-h-screen flex items-center justify-center"><h1 className="text-2xl">Combo no encontrado</h1></div>;
@@ -442,17 +444,16 @@ const ComboDetail = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               
-              {/* COLUMNA IZQUIERDA (Detalles) */}
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
                             <div className="relative">
-                                <img src={combo.image} alt={combo.name} className={`w-full h-64 md:h-80 object-cover rounded-2xl shadow-md ${!isTimeValid ? 'grayscale' : ''}`} />
-                                {!isTimeValid && (
+                                <img src={combo.image} alt={combo.name} className={`w-full h-64 md:h-80 object-cover rounded-2xl shadow-md ${!isAvailable ? 'grayscale' : ''}`} />
+                                {!isAvailable && (
                                     <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
                                         <span className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg rotate-[-10deg] shadow-lg border-2 border-white">
-                                            HORARIO FINALIZADO
+                                            NO DISPONIBLE
                                         </span>
                                     </div>
                                 )}
@@ -478,8 +479,8 @@ const ComboDetail = () => {
                             </div>
                             
                             <div className="flex flex-col space-y-2 mb-6 text-sm">
-                                <div className={`flex items-center p-2 rounded-lg ${isTimeValid ? 'bg-gray-50 text-gray-700' : 'bg-red-50 text-red-700 font-bold'}`}>
-                                    {isTimeValid ? <Clock className="w-4 h-4 mr-2 text-primary" /> : <AlertCircle className="w-4 h-4 mr-2"/>}
+                                <div className={`flex items-center p-2 rounded-lg ${isAvailable ? 'bg-gray-50 text-gray-700' : 'bg-red-50 text-red-700 font-bold'}`}>
+                                    {isAvailable ? <Clock className="w-4 h-4 mr-2 text-primary" /> : <AlertCircle className="w-4 h-4 mr-2"/>}
                                     <span className="font-medium">Horario: {combo.pickupTime}</span>
                                 </div>
                                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center group transition-colors ${mapsUrl !== '#' ? 'text-blue-600 hover:text-blue-800 cursor-pointer' : 'text-gray-500 pointer-events-none'}`}>
@@ -500,13 +501,12 @@ const ComboDetail = () => {
                                 </div>
                             </div>
 
-                            {/* BOTÓN DE COMPRA */}
                             <Button 
                                 onClick={handleAddToCart} 
                                 size="lg" 
-                                disabled={!isTimeValid || isAddingToCart} 
+                                disabled={!isAvailable || isAddingToCart} 
                                 className={`w-full text-lg shadow-md h-12 rounded-xl transition-all ${
-                                    isTimeValid 
+                                    isAvailable 
                                     ? 'btn-gradient' 
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300'
                                 }`}
@@ -516,7 +516,7 @@ const ComboDetail = () => {
                                 ) : (
                                     <ShoppingBag className="w-5 h-5 mr-2" />
                                 )}
-                                {isAddingToCart ? "Agregando..." : (isTimeValid ? "Añadir al Carrito" : "Horario Finalizado")}
+                                {isAddingToCart ? "Agregando..." : (isAvailable ? "Añadir al Carrito" : "No Disponible")}
                             </Button>
                         </motion.div>
                     </div>
@@ -542,7 +542,6 @@ const ComboDetail = () => {
                     </div>
                 </div>
 
-                {/* --- SECCIÓN DE RESEÑAS --- */}
                 <div className="mt-10">
                   <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 className="text-2xl font-bold text-gray-900">Opiniones del Combo</h2>
@@ -588,7 +587,6 @@ const ComboDetail = () => {
                     )}
                    </AnimatePresence>
 
-                  {/* LISTA DE RESEÑAS */}
                   {sortedReviews.length > 0 ? (
                     <div className="space-y-4">
                         {sortedReviews.map((review) => (
@@ -628,7 +626,6 @@ const ComboDetail = () => {
                                       <Button variant="ghost" size="sm" onClick={() => handleStartEdit(review)} title="Editar reseña">
                                         <Edit className="w-4 h-4" />
                                       </Button>
-                                      {/* AQUÍ CAMBIAMOS EL ONCLICK PARA ABRIR EL MODAL */}
                                       <Button variant="ghost" size="sm" onClick={() => openDeleteModal(review.id)} title="Eliminar reseña">
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                       </Button>
@@ -704,7 +701,6 @@ const ComboDetail = () => {
         </div>
       </div>
 
-      {/* --- MODAL DE CONFIRMACIÓN (INTEGRADO AL FINAL) --- */}
       <AnimatePresence>
         {deleteModalOpen && (
             <motion.div 

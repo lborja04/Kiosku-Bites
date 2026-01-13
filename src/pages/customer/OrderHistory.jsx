@@ -12,7 +12,7 @@ const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [addingToCart, setAddingToCart] = useState(null); // ID del pedido que se está añadiendo
+  const [addingToCart, setAddingToCart] = useState(null); 
   const { user } = useAuth();
 
   // --- 1. CARGAR PEDIDOS DESDE SUPABASE ---
@@ -23,7 +23,6 @@ const OrderHistory = () => {
       try {
         setLoading(true);
 
-        // A. Obtener ID del cliente
         const { data: userData } = await supabase
             .from('usuario')
             .select('id_usuario')
@@ -32,7 +31,6 @@ const OrderHistory = () => {
 
         if (!userData) return;
 
-        // B. Obtener Compras
         const { data, error } = await supabase
             .from('compra')
             .select(`
@@ -47,6 +45,7 @@ const OrderHistory = () => {
                     url_imagen,
                     descripcion,
                     local:local!fk_combo_local (
+                        id_local,
                         nombre_local,
                         ubicacion,
                         horario,
@@ -83,7 +82,6 @@ const OrderHistory = () => {
       if (isDelivered || status === 'Pedido Terminado') {
           return { text: "Pedido entregado y disfrutado.", color: "text-gray-500", icon: <CheckCircle className="w-4 h-4 mr-1"/> };
       }
-      
       if (status === 'Pedido Pagado') {
           return { 
               text: "✅ ¡Pagado! Acércate directamente al mostrador a retirar.", 
@@ -91,7 +89,6 @@ const OrderHistory = () => {
               bg: "bg-green-50"
           };
       }
-      
       if (status === 'Pedido Realizado') {
           return { 
               text: "💵 Pago en efectivo: Por favor ten listo el importe exacto al retirar.", 
@@ -99,7 +96,6 @@ const OrderHistory = () => {
               bg: "bg-orange-50"
           };
       }
-
       return { text: "Consulta el estado con el local.", color: "text-blue-600", bg: "bg-blue-50" };
   };
 
@@ -113,13 +109,12 @@ const OrderHistory = () => {
       }
   };
 
-  // --- REPETIR PEDIDO (Lógica DB Corregida) ---
+  // --- REPETIR PEDIDO ---
   const handleRepeatOrder = async (order) => {
     if (!user) return;
     setAddingToCart(order.id_compra);
 
     try {
-        // 1. Obtener ID Cliente
         const { data: userData } = await supabase
             .from('usuario')
             .select('id_usuario')
@@ -130,7 +125,6 @@ const OrderHistory = () => {
         const clientId = userData.id_usuario;
         const comboId = order.combo.id_combo;
 
-        // 2. Verificar si ya existe en el carrito
         const { data: existingItem, error: fetchError } = await supabase
             .from('carrito_item')
             .select('id_carrito_item, cantidad')
@@ -141,7 +135,6 @@ const OrderHistory = () => {
         if (fetchError) throw fetchError;
 
         if (existingItem) {
-            // A. ACTUALIZAR CANTIDAD (+1)
             const { error: updateError } = await supabase
                 .from('carrito_item')
                 .update({ cantidad: existingItem.cantidad + 1 })
@@ -149,7 +142,6 @@ const OrderHistory = () => {
             
             if (updateError) throw updateError;
         } else {
-            // B. INSERTAR NUEVO
             const { error: insertError } = await supabase
                 .from('carrito_item')
                 .insert({
@@ -161,7 +153,6 @@ const OrderHistory = () => {
             if (insertError) throw insertError;
         }
 
-        // 3. Notificar y Actualizar Navbar
         window.dispatchEvent(new Event('cart-updated'));
         
         toast({
@@ -245,21 +236,36 @@ const OrderHistory = () => {
                     {/* Header del Pedido */}
                     <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between md:items-center gap-4">
                       <div className="flex items-start gap-4">
-                          {/* Miniatura Imagen */}
-                          <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200">
-                              {order.combo.url_imagen && <img src={order.combo.url_imagen} className="w-full h-full object-cover" alt="Combo" />}
-                          </div>
+                          
+                          {/* Miniatura Imagen (Linkeable) */}
+                          <Link to={`/combo/${order.combo.id_combo}`} className="flex-shrink-0 group">
+                              <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden border border-gray-200 group-hover:opacity-90 transition-opacity">
+                                  {order.combo.url_imagen && <img src={order.combo.url_imagen} className="w-full h-full object-cover" alt="Combo" />}
+                              </div>
+                          </Link>
                           
                           <div>
-                            <h2 className="font-bold text-lg text-gray-900 line-clamp-1">
-                                {order.combo.nombre_bundle}
-                            </h2>
+                            {/* NOMBRE DEL COMBO CON LINK */}
+                            <Link to={`/combo/${order.combo.id_combo}`} className="group">
+                                <h2 className="font-bold text-lg text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">
+                                    {order.combo.nombre_bundle}
+                                </h2>
+                            </Link>
+
                             <p className="text-sm text-gray-500 flex items-center gap-2 mb-1">
-                                <span className="font-medium text-primary">{order.combo.local?.nombre_local}</span>
+                                {/* Link al perfil del local (Opcional, si tienes ruta de local) */}
+                                {order.combo.local?.id_local ? (
+                                    <Link to={`/local/${order.combo.local.id_local}`} className="font-medium text-primary hover:underline">
+                                        {order.combo.local.nombre_local}
+                                    </Link>
+                                ) : (
+                                    <span className="font-medium text-primary">{order.combo.local?.nombre_local}</span>
+                                )}
                                 <span>•</span>
                                 <Calendar className="w-3 h-3" />
                                 {new Date(order.fecha_compra).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
                             </p>
+                            
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.estado)}`}>
                                 {order.estado}
                             </span>
