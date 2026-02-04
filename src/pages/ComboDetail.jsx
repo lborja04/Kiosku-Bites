@@ -84,57 +84,88 @@ const ComboDetail = () => {
     fetchClientId();
   }, [user]);
 
-  // --- FUNCIÓN DE TIEMPO ROBUSTA (FAIL-OPEN) ---
+  // --- FUNCIÓN DE TIEMPO REFORZADA ---
   const checkTimeWindow = (scheduleString) => {
-    if (!scheduleString) return { available: true, reason: "Sin horario (Abierto)" };
+    // Si no hay horario o está vacío, asumimos abierto
+    if (!scheduleString || scheduleString.trim() === '') {
+        return { available: true, reason: "Sin horario (Abierto)" };
+    }
     
     try {
-        const cleanSchedule = scheduleString.toLowerCase().replace(/\s+/g, ''); 
-        const parts = cleanSchedule.split(/[-–a]+/); 
+        // 1. LIMPIEZA AGRESIVA
+        // Convertimos a minúsculas, quitamos puntos (p.m. -> pm) y quitamos todos los espacios
+        const cleanSchedule = scheduleString.toLowerCase().replace(/\./g, '').replace(/\s+/g, ''); 
         
-        // Si no se puede parsear, DEVOLVEMOS TRUE (Abierto) para no bloquear ventas por error de sintaxis
+        // 2. SEPARACIÓN
+        // Separamos por guion corto (-), guion largo (–) o la palabra 'a'
+        const parts = cleanSchedule.split(/[-–]|to|\sa\s/); 
+        
         if (parts.length < 2) return { available: true, reason: "Formato irreconocible (Abierto)" };
 
+        // Helper para convertir a minutos del día (0 - 1439)
         const getMinutes = (timeStr) => {
-            let [time, modifier] = timeStr.split(/(am|pm)/);
-            let [h, m] = time.split(':').map(Number);
-            if (!m) m = 0; 
-            
-            // Si h es NaN, devolvemos null
-            if (isNaN(h)) return null;
+            // Regex: Busca números iniciales, opcionalmente :minutos, y opcionalmente am/pm
+            const match = timeStr.match(/(\d+)(?::(\d+))?([ap]m)?/);
+            if (!match) return null;
 
-            if (modifier === 'pm' && h < 12) h += 12;
-            if (modifier === 'am' && h === 12) h = 0;
+            let [_, hStr, mStr, modifier] = match;
+            let h = parseInt(hStr);
+            let m = mStr ? parseInt(mStr) : 0;
+
+            // Manejo de AM/PM
+            if (modifier) {
+                if (modifier === 'pm' && h < 12) h += 12;
+                if (modifier === 'am' && h === 12) h = 0;
+            } else {
+                // Si no hay modificador, asumimos formato 24h PERO tratamos casos bordes
+                // Si alguien pone "12 - 12", asumimos mediodia a medianoche si el contexto lo sugiere?
+                // Por seguridad, si es 24h, 24:00 es las 00:00 del día siguiente
+                if (h === 24) h = 0;
+            }
+            
             return h * 60 + m;
         };
 
         const startMinutes = getMinutes(parts[0]);
         const endMinutes = getMinutes(parts[1]);
         
-        // Si falló el parseo de horas, ABIERTO
-        if (startMinutes === null || endMinutes === null) {
-            return { available: true, reason: "Error parseo horas (Abierto)" };
+        // Validación de seguridad si falló el parseo numérico
+        if (startMinutes === null || endMinutes === null || isNaN(startMinutes) || isNaN(endMinutes)) {
+            return { available: true, reason: "Error leyendo números (Abierto)" };
         }
 
+        // --- DEBUG EN CONSOLA (Para que veas qué calculó) ---
+        // Borrar esto cuando ya funcione bien
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        console.log(`⏱️ DEBUG HORARIO:
+        Texto Original: "${scheduleString}"
+        Limpio: "${cleanSchedule}"
+        Inicio: ${startMinutes} min (${Math.floor(startMinutes/60)}:${(startMinutes%60).toString().padStart(2,'0')})
+        Fin:    ${endMinutes} min (${Math.floor(endMinutes/60)}:${(endMinutes%60).toString().padStart(2,'0')})
+        Actual: ${currentMinutes} min (${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')})
+        `);
+        // ----------------------------------------------------
 
-        // Caso horario nocturno (cruza medianoche)
+        // Lógica de comparación
+        // Caso Nocturno (Ej: Abre 12:00 (720) - Cierra 00:00 (0)) -> 0 < 720
         if (endMinutes < startMinutes) {
+            // Está abierto si es mayor al inicio (tarde) O menor al fin (madrugada)
             if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
-                return { available: true, reason: "Abierto (Noche)" };
+                return { available: true, reason: "Abierto (Turno Noche)" };
             }
-        } else {
-            // Caso normal
+        } 
+        // Caso Normal (Ej: Abre 08:00 (480) - Cierra 20:00 (1200))
+        else {
             if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
                 return { available: true, reason: "Abierto" };
             }
         }
         
-        return { available: false, reason: `Cerrado (Hora actual: ${now.toLocaleTimeString()})` };
+        return { available: false, reason: `Cerrado (Hora: ${now.toLocaleTimeString()})` };
 
     } catch (e) {
-        console.error("Error validando horario:", e);
+        console.error("Error crítico validando horario:", e);
         return { available: true, reason: "Error script (Abierto)" }; 
     }
   };
@@ -759,3 +790,4 @@ const ComboDetail = () => {
 };
 
 export default ComboDetail;
+
