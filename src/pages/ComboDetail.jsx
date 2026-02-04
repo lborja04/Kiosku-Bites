@@ -1,12 +1,41 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Star, Clock, MapPin, ChevronLeft, ShoppingBag, Loader2, ExternalLink, MessageSquarePlus, X, Sparkles, CheckCircle2, AlertCircle, Edit, Trash2, AlertTriangle, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, updateReview, deleteReview } from '@/services/supabaseAuthClient';
+
+// --- MODAL DE NO DISPONIBLE (REDIRECCIÓN) ---
+const UnavailableRedirectModal = ({ isOpen, onRedirect }) => {
+    if (!isOpen) return null;
+    return (
+        <AnimatePresence>
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+                    className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden p-8 text-center"
+                >
+                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Ban className="w-10 h-10 text-gray-500" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">¡Lo sentimos!</h3>
+                    <p className="text-gray-600 mb-8 leading-relaxed">
+                        Este combo acaba de cerrar o ya no está disponible para la venta.
+                    </p>
+                    <Button onClick={onRedirect} className="w-full py-4 text-lg btn-gradient">
+                        Volver a Explorar
+                    </Button>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
 
 const ComboDetail = () => {
   const { id: comboIdParam } = useParams();
@@ -21,8 +50,9 @@ const ComboDetail = () => {
   
   // ESTADO DE DISPONIBILIDAD
   const [isAvailable, setIsAvailable] = useState(true); 
-  const [availabilityReason, setAvailabilityReason] = useState(""); // Para debugging visual si quieres
-  
+  const [showRedirectModal, setShowRedirectModal] = useState(false); 
+  const scheduleRef = useRef(""); 
+
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   // Estados de Reseñas y Modales
@@ -54,64 +84,58 @@ const ComboDetail = () => {
     fetchClientId();
   }, [user]);
 
-  // --- FUNCIÓN DE TIEMPO ROBUSTA (Soporta 24h y AM/PM) ---
+  // --- FUNCIÓN DE TIEMPO ROBUSTA (FAIL-OPEN) ---
   const checkTimeWindow = (scheduleString) => {
-    if (!scheduleString) return { available: true, reason: "Sin horario definido" };
+    if (!scheduleString) return { available: true, reason: "Sin horario (Abierto)" };
     
     try {
-        // Normalizamos el string (quitar espacios extra, minúsculas)
-        const cleanSchedule = scheduleString.toLowerCase().replace(/\s+/g, ''); // "18:00-23:00" o "6:00pm-11:00pm"
-        
-        // Separamos inicio y fin por el guion "-"
-        // Soporta guiones cortos, largos o "a"
+        const cleanSchedule = scheduleString.toLowerCase().replace(/\s+/g, ''); 
         const parts = cleanSchedule.split(/[-–a]+/); 
         
-        if (parts.length < 2) return { available: true, reason: "Formato de horario no reconocido (Abierto)" };
+        // Si no se puede parsear, DEVOLVEMOS TRUE (Abierto) para no bloquear ventas por error de sintaxis
+        if (parts.length < 2) return { available: true, reason: "Formato irreconocible (Abierto)" };
 
-        // Helper para convertir hora texto a minutos desde medianoche (0 - 1439)
         const getMinutes = (timeStr) => {
             let [time, modifier] = timeStr.split(/(am|pm)/);
             let [h, m] = time.split(':').map(Number);
-            if (!m) m = 0; // Si no hay minutos, es 0
+            if (!m) m = 0; 
+            
+            // Si h es NaN, devolvemos null
+            if (isNaN(h)) return null;
 
-            // Ajuste 12h a 24h
             if (modifier === 'pm' && h < 12) h += 12;
             if (modifier === 'am' && h === 12) h = 0;
-            
             return h * 60 + m;
         };
 
         const startMinutes = getMinutes(parts[0]);
         const endMinutes = getMinutes(parts[1]);
         
+        // Si falló el parseo de horas, ABIERTO
+        if (startMinutes === null || endMinutes === null) {
+            return { available: true, reason: "Error parseo horas (Abierto)" };
+        }
+
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-        console.log(`🕒 Validación Horario:
-          Texto: "${scheduleString}"
-          Inicio: ${startMinutes} min (${Math.floor(startMinutes/60)}:${startMinutes%60})
-          Fin: ${endMinutes} min (${Math.floor(endMinutes/60)}:${endMinutes%60})
-          Actual: ${currentMinutes} min (${now.getHours()}:${now.getMinutes()})
-        `);
-
-        // Caso especial: Horario cruza medianoche (ej: 22:00 - 02:00)
+        // Caso horario nocturno (cruza medianoche)
         if (endMinutes < startMinutes) {
-            // Está abierto si es mayor al inicio (noche) O menor al fin (madrugada)
             if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
-                return { available: true, reason: "Dentro de horario (Noche)" };
+                return { available: true, reason: "Abierto (Noche)" };
             }
         } else {
-            // Horario normal (ej: 18:00 - 22:00)
+            // Caso normal
             if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                return { available: true, reason: "Dentro de horario" };
+                return { available: true, reason: "Abierto" };
             }
         }
-
-        return { available: false, reason: "Fuera de rango horario" };
+        
+        return { available: false, reason: `Cerrado (Hora actual: ${now.toLocaleTimeString()})` };
 
     } catch (e) {
-        console.warn("Error parseando horario:", e);
-        return { available: true, reason: "Error de formato (Abierto por defecto)" };
+        console.error("Error validando horario:", e);
+        return { available: true, reason: "Error script (Abierto)" }; 
     }
   };
 
@@ -129,23 +153,26 @@ const ComboDetail = () => {
 
         if (comboError) throw comboError;
 
-        // --- VALIDACIÓN DISPONIBILIDAD ---
+        // --- VALIDACIÓN ---
         const horario = comboData.local?.horario || "";
+        scheduleRef.current = horario; // Guardar para intervalo
+
         const timeCheck = checkTimeWindow(horario);
         
-        // La disponibilidad final depende de 2 cosas:
-        // 1. El check de "Disponible" en la base de datos (comboData.estadisponible)
-        // 2. Que estemos dentro del horario del local
-        const finalAvailability = comboData.estadisponible && timeCheck.available;
+        // Aseguramos que estadisponible sea booleano (si es null, asumimos true para no bloquear)
+        const isDbAvailable = comboData.estadisponible !== false; 
+        
+        const finalAvailability = isDbAvailable && timeCheck.available;
 
-        console.log("📊 Estado Final:", {
-            enBD: comboData.estadisponible,
-            horarioCheck: timeCheck,
-            resultado: finalAvailability
+        console.log("🔍 CHECK DISPONIBILIDAD:", {
+            nombre: comboData.nombre_bundle,
+            enBaseDatos: isDbAvailable,
+            horarioInfo: timeCheck,
+            RESULTADO: finalAvailability
         });
 
         setIsAvailable(finalAvailability);
-        // ---------------------------------
+        // ------------------
 
         const { data: reviewsData, error: reviewsError } = await supabase
             .from('resena')
@@ -175,7 +202,8 @@ const ComboDetail = () => {
             pickupTime: horario || "Consultar",
             locationString: comboData.local?.ubicacion,
             rating: avg,
-            reviewsCount: reviewsData?.length || 0
+            reviewsCount: reviewsData?.length || 0,
+            dbAvailable: isDbAvailable
         });
 
         setReviews(reviewsData?.map(r => ({
@@ -190,14 +218,7 @@ const ComboDetail = () => {
 
         const { data: othersData } = await supabase
             .from('combo')
-            .select(`
-                id_combo, 
-                nombre_bundle, 
-                precio_descuento, 
-                url_imagen, 
-                local:local!fk_combo_local(nombre_local),
-                resena(calificacion) 
-            `)
+            .select(`id_combo, nombre_bundle, precio_descuento, url_imagen, local:local!fk_combo_local(nombre_local), resena(calificacion)`)
             .neq('id_combo', comboIdParam)
             .eq('estadisponible', true)
             .limit(3);
@@ -210,7 +231,6 @@ const ComboDetail = () => {
                     const total = ratings.reduce((acc, curr) => acc + curr.calificacion, 0);
                     otherAvg = (total / ratings.length).toFixed(1);
                 }
-
                 return {
                     id: c.id_combo,
                     name: c.nombre_bundle,
@@ -233,6 +253,59 @@ const ComboDetail = () => {
     if (comboIdParam) fetchComboDetail();
   }, [comboIdParam, refreshTrigger]);
 
+
+  // 3. LISTENERS EN TIEMPO REAL (CORREGIDO)
+  useEffect(() => {
+      if (!comboIdParam) return;
+
+      // A. Intervalo
+      const intervalId = setInterval(() => {
+          const timeCheck = checkTimeWindow(scheduleRef.current);
+          
+          if (!timeCheck.available) {
+              setIsAvailable(false);
+              if (!showRedirectModal) setShowRedirectModal(true);
+          }
+      }, 10000); 
+
+      // B. Suscripción DB
+      const channel = supabase
+        .channel('combo-availability')
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'combo',
+                filter: `id_combo=eq.${comboIdParam}` 
+            },
+            (payload) => {
+                const newDbStatus = payload.new.estadisponible;
+                
+                if (newDbStatus === false) {
+                    setIsAvailable(false);
+                    setShowRedirectModal(true);
+                } else {
+                    // Si se activa, verificamos horario
+                    const timeCheck = checkTimeWindow(scheduleRef.current);
+                    setIsAvailable(newDbStatus && timeCheck.available);
+                }
+            }
+        )
+        .subscribe();
+
+      return () => {
+          clearInterval(intervalId);
+          supabase.removeChannel(channel);
+      };
+  }, [comboIdParam, showRedirectModal]); 
+
+
+  // --- FUNCIONES Y RENDER ---
+  const handleRedirect = () => {
+      navigate('/buscar-combos');
+  };
+
   const sortedReviews = useMemo(() => {
       if (!reviews.length) return [];
       const compareFn = (a, b) => {
@@ -244,9 +317,7 @@ const ComboDetail = () => {
               default: return 0;
           }
       };
-      const featured = reviews.filter(r => r.isFeatured).sort(compareFn);
-      const regular = reviews.filter(r => !r.isFeatured).sort(compareFn);
-      return [...featured, ...regular];
+      return [...reviews].sort(compareFn);
   }, [reviews, sortOption]);
 
   const getGoogleMapsUrl = (locationString) => {
@@ -257,7 +328,7 @@ const ComboDetail = () => {
 
   const handleAddToCart = async () => {
     if (!isAvailable) {
-        toast({ title: "No disponible", description: "Este combo no se puede pedir en este momento.", variant: "destructive" });
+        toast({ title: "No disponible", description: "Lo sentimos, este combo no está disponible.", variant: "destructive" });
         return;
     }
 
@@ -303,12 +374,12 @@ const ComboDetail = () => {
             if (insertError) throw insertError;
         }
 
-        toast({ title: "¡Añadido al carrito!", description: "Producto guardado en tu cuenta.", className: "bg-green-50 border-green-200" });
+        toast({ title: "¡Añadido al carrito!", description: "Producto guardado.", className: "bg-green-50 border-green-200" });
         window.dispatchEvent(new Event('cart-updated'));
 
     } catch (error) {
         console.error("Error agregando al carrito:", error);
-        toast({ title: "Error", description: "No se pudo agregar al carrito. Intenta de nuevo.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo agregar al carrito.", variant: "destructive" });
     } finally {
         setIsAddingToCart(false);
     }
@@ -324,17 +395,8 @@ const ComboDetail = () => {
           return;
       }
       try {
-        const { data, error } = await supabase
-            .from('compra')
-            .select('id_compra')
-            .eq('id_combo', combo.id)
-            .eq('id_cliente', clientId)
-            .neq('estado', 'Cancelado') 
-            .limit(1)
-            .maybeSingle(); 
-
+        const { data, error } = await supabase.from('compra').select('id_compra').eq('id_combo', combo.id).eq('id_cliente', clientId).neq('estado', 'Cancelado').limit(1).maybeSingle(); 
         if (error) throw error;
-
         if (!data) {
             toast({ title: "Compra requerida", description: "Para garantizar la veracidad, solo puedes opinar si has comprado este combo.", variant: "destructive" });
             return;
@@ -342,7 +404,7 @@ const ComboDetail = () => {
         setShowReviewForm(true);
       } catch (err) {
           console.error("Error verificando compra:", err);
-          toast({ title: "Error", description: "No pudimos verificar tu historial de compras.", variant: "destructive" });
+          toast({ title: "Error", description: "No pudimos verificar tu historial.", variant: "destructive" });
       }
   };
 
@@ -375,18 +437,8 @@ const ComboDetail = () => {
       }
   };
 
-  const handleStartEdit = (review) => {
-    setEditingReviewId(review.id);
-    setEditedRating(review.rating || 5);
-    setEditedComment(review.comment || '');
-  };
-
-  const handleCancelEdit = () => {
-    setEditingReviewId(null);
-    setEditedRating(5);
-    setEditedComment('');
-  };
-
+  const handleStartEdit = (review) => { setEditingReviewId(review.id); setEditedRating(review.rating || 5); setEditedComment(review.comment || ''); };
+  const handleCancelEdit = () => { setEditingReviewId(null); setEditedRating(5); setEditedComment(''); };
   const handleSaveEdit = async (reviewId) => {
     if (!user || !user.db_id) return toast({ title: 'Acceso', description: 'Debes iniciar sesión.', variant: 'destructive' });
     setIsSavingEdit(true);
@@ -403,11 +455,7 @@ const ComboDetail = () => {
     }
   };
 
-  const openDeleteModal = (reviewId) => {
-    setReviewToDelete(reviewId);
-    setDeleteModalOpen(true);
-  };
-
+  const openDeleteModal = (reviewId) => { setReviewToDelete(reviewId); setDeleteModalOpen(true); };
   const confirmDelete = async () => {
     if (!user || !user.db_id || !reviewToDelete) return;
     setIsDeleting(true);
@@ -435,7 +483,9 @@ const ComboDetail = () => {
     <>
       <Helmet><title>{combo.name} - KIOSKU BITES</title></Helmet>
 
-      <div className="min-h-screen bg-gray-50 pt-20 pb-12">
+      <UnavailableRedirectModal isOpen={showRedirectModal} onRedirect={handleRedirect} />
+
+      <div className={`min-h-screen bg-gray-50 pt-20 pb-12 transition-all ${showRedirectModal ? 'blur-sm pointer-events-none' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Link to="/buscar-combos" className="inline-flex items-center text-primary hover:underline mb-6 font-medium">
@@ -443,7 +493,6 @@ const ComboDetail = () => {
             </Link>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-              
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -546,11 +595,7 @@ const ComboDetail = () => {
                   <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 className="text-2xl font-bold text-gray-900">Opiniones del Combo</h2>
                     <div className="flex items-center gap-2">
-                        <select 
-                            value={sortOption}
-                            onChange={(e) => setSortOption(e.target.value)}
-                            className="text-sm border border-gray-200 rounded-lg p-2 bg-white focus:ring-2 focus:ring-primary outline-none"
-                        >
+                        <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="text-sm border border-gray-200 rounded-lg p-2 bg-white focus:ring-2 focus:ring-primary outline-none">
                             <option value="date_desc">Más recientes</option>
                             <option value="date_asc">Más antiguas</option>
                             <option value="rating_desc">Mejor calificación</option>
@@ -590,13 +635,7 @@ const ComboDetail = () => {
                   {sortedReviews.length > 0 ? (
                     <div className="space-y-4">
                         {sortedReviews.map((review) => (
-                          <motion.div 
-                            key={review.id} 
-                            initial={{ opacity: 0, y: 10 }} 
-                            whileInView={{ opacity: 1, y: 0 }} 
-                            viewport={{ once: true }} 
-                            className={`p-5 rounded-2xl shadow-sm border ${review.isFeatured ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}
-                          >
+                          <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className={`p-5 rounded-2xl shadow-sm border ${review.isFeatured ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
                             <div className="flex justify-between items-start mb-2">
                               <div>
                                 <div className="flex items-center gap-2">
@@ -634,7 +673,6 @@ const ComboDetail = () => {
                                 ) : null}
                               </div>
                             </div>
-
                             {editingReviewId === review.id ? (
                               <div className="mt-2">
                                 <div className="flex items-center mb-2">
@@ -649,7 +687,6 @@ const ComboDetail = () => {
                             ) : (
                               <p className="text-gray-600 text-sm leading-relaxed">"{review.comment}"</p>
                             )}
-
                             {review.isFeatured && (
                                 <div className="mt-3 text-xs text-amber-700 flex items-center">
                                     <CheckCircle2 className="w-3 h-3 mr-1" /> El local destacó esta opinión
@@ -668,7 +705,6 @@ const ComboDetail = () => {
                 </div>
               </div>
 
-              {/* COLUMNA DERECHA (Otras ofertas) */}
               <aside className="lg:col-span-1 space-y-6">
                 <h3 className="text-xl font-bold text-gray-900">Otras ofertas flash ⚡</h3>
                 {otherCombos.length > 0 ? otherCombos.map(otherCombo => (
@@ -703,48 +739,16 @@ const ComboDetail = () => {
 
       <AnimatePresence>
         {deleteModalOpen && (
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-            >
-                <motion.div 
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-100"
-                >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-100">
                     <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 text-red-600">
                         <AlertTriangle className="w-6 h-6" />
                     </div>
-                    
-                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-                        ¿Eliminar reseña?
-                    </h3>
-                    
-                    <p className="text-gray-500 text-center text-sm mb-6">
-                        Esta acción no se puede deshacer. ¿Estás seguro de que quieres borrar tu opinión?
-                    </p>
-                    
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">¿Eliminar reseña?</h3>
+                    <p className="text-gray-500 text-center text-sm mb-6">Esta acción no se puede deshacer. ¿Estás seguro de que quieres borrar tu opinión?</p>
                     <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setDeleteModalOpen(false)}
-                            disabled={isDeleting}
-                            className="w-full"
-                        >
-                            Cancelar
-                        </Button>
-                        <Button 
-                            variant="destructive" 
-                            onClick={confirmDelete}
-                            disabled={isDeleting}
-                            className="w-full bg-red-600 hover:bg-red-700"
-                        >
-                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
-                            Eliminar
-                        </Button>
+                        <Button variant="outline" onClick={() => setDeleteModalOpen(false)} disabled={isDeleting} className="w-full">Cancelar</Button>
+                        <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting} className="w-full bg-red-600 hover:bg-red-700">{isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null} Eliminar</Button>
                     </div>
                 </motion.div>
             </motion.div>
